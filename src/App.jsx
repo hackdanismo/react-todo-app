@@ -5,15 +5,15 @@ import { createClient } from "@supabase/supabase-js"
 const supabase = createClient(import.meta.env.VITE_SUPABASE_PROJECT, import.meta.env.VITE_SUPABASE_ANON_KEY)
 
 const App = () => {
-  const [countries, setCountries] = useState([])
+  const [todos, setTodos] = useState([])
 
   useEffect(() => {
-    getCountries()
+    fetchAllTodos()
   }, [])
 
-  async function getCountries() {
-    const { data } = await supabase.from("countries").select()
-    setCountries(data)
+  async function fetchAllTodos() {
+    const { data } = await supabase.from("todo").select()
+    setTodos(data)
   }
 
   return (
@@ -21,8 +21,8 @@ const App = () => {
       <h1>Todo App</h1>
 
       <ul>
-        {countries.map((country) => (
-          <li key={country.name}>{country.name}</li>
+        {todos.map((todo) => (
+          <li key={todo.task}>{todo.task}</li>
         ))}
       </ul>
     </>
