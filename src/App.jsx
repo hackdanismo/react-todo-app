@@ -6,6 +6,7 @@ const supabase = createClient(import.meta.env.VITE_SUPABASE_PROJECT, import.meta
 
 const App = () => {
   const [todos, setTodos] = useState([])
+  const [newTodo, setNewTodo] = useState("")
 
   useEffect(() => {
     fetchAllTodos()
@@ -16,15 +17,38 @@ const App = () => {
     setTodos(data)
   }
 
+  const handleInputChange = event => {
+    setNewTodo(event.target.value)
+  }
+
+  const addTodo = async () => {
+    if (newTodo.trim() === "") return   // Prevent adding an empty value
+    const { data, error } = await supabase
+      .from("todo")
+      .insert([{ task: newTodo }])
+
+    if (error) {
+      console.error("Error adding the task:", error)
+    } else {
+      setTodos([...todos, ...data])
+      setNewTodo("") // Clear the input after task has been added
+    }
+  }
+
   return (
     <>
       <h1>Todo App</h1>
 
       <ul>
         {todos.map((todo) => (
-          <li key={todo.task}>{todo.task}</li>
+          <li key={todo.id}>{todo.task}</li>
         ))}
       </ul>
+
+      <label>
+        <input type="text" value={newTodo} onChange={handleInputChange} placeholder="Add a task" />
+      </label>
+      <button onClick={addTodo}>Add Task</button>
     </>
   )
 }
