@@ -30,8 +30,8 @@ const App = () => {
     if (error) {
       console.error("Error adding the task:", error)
     } else {
-      setTodos([...todo, ...data])
-      setNewTodo("")
+      setTodos([...todos, ...data])
+      setNewTodo("") // Clear the input after task has been added
     }
   }
 
