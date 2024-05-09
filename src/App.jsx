@@ -41,7 +41,7 @@ const App = () => {
 
       <ul>
         {todos.map((todo) => (
-          <li key={todo.task}>{todo.task}</li>
+          <li key={todo.id}>{todo.task}</li>
         ))}
       </ul>
 
