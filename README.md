@@ -27,3 +27,15 @@ Create a `.env` file within the root of the application and add the `Supabase` c
 VITE_SUPABASE_PROJECT=https://xxxxxxxxxxxxx.supabase.co
 VITE_SUPABASE_ANON_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
+
+## Realtime Notes
+
+The error indicates that the on method is not recognized, likely due to an incorrect method chain. The Supabase client has been updated, and the subscription API has slightly changed. You should use the channel method for subscribing to real-time events.
+
+Here’s the corrected code using the updated subscription method:
+
+Key Changes:
+Channel Subscription: Used supabase.channel('todos') to create a channel for real-time updates.
+Event Listener: The on method is now applied to listen to 'postgres_changes' for the INSERT event.
+Cleanup: The subscription is removed using supabase.removeChannel(todoChannel) to clean up on component unmount.
+This code should now properly subscribe to real-time changes in the todo table and update the state accordingly.
