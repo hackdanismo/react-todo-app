@@ -12,12 +12,12 @@ To create a `table` inside the `Supabase` `PostgreSQL` database, we can use `SQL
 
 ```sql
  -- Create the table
- CREATE TABLE todo (
+ CREATE TABLE task (
    id SERIAL PRIMARY KEY,
-   task VARCHAR(255) NOT NULL
+   title VARCHAR(255) NOT NULL
  );
  -- Insert some sample data into the table
- INSERT INTO todo (task) VALUES ('Tidy the room');
+ INSERT INTO task (title) VALUES ('Tidy the room');
 ```
 
 ## Environment variables

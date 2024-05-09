@@ -5,50 +5,50 @@ import { createClient } from "@supabase/supabase-js"
 const supabase = createClient(import.meta.env.VITE_SUPABASE_PROJECT, import.meta.env.VITE_SUPABASE_ANON_KEY)
 
 const App = () => {
-  const [todos, setTodos] = useState([])
-  const [newTodo, setNewTodo] = useState("")
+  const [tasks, setTasks] = useState([])
+  const [newTask, setNewTask] = useState("")
 
   useEffect(() => {
-    fetchAllTodos()
+    fetchAllTasks()
   }, [])
 
-  async function fetchAllTodos() {
-    const { data } = await supabase.from("todo").select()
-    setTodos(data)
+  async function fetchAllTasks() {
+    const { data } = await supabase.from("tasks").select()
+    setTasks(data)
   }
 
   const handleInputChange = event => {
-    setNewTodo(event.target.value)
+    setNewTask(event.target.value)
   }
 
-  const addTodo = async () => {
-    if (newTodo.trim() === "") return   // Prevent adding an empty value
+  const addTask = async () => {
+    if (newTask.trim() === "") return   // Prevent adding an empty value
     const { data, error } = await supabase
-      .from("todo")
-      .insert([{ task: newTodo }])
+      .from("tasks")
+      .insert([{ title: newTask }])
 
     if (error) {
       console.error("Error adding the task:", error)
     } else {
-      setTodos([...todos, ...data])
-      setNewTodo("") // Clear the input after task has been added
+      setTasks([...tasks, ...data])
+      setNewTask("") // Clear the input after task has been added
     }
   }
 
   return (
     <>
-      <h1>Todo App</h1>
+      <h1>Task App</h1>
 
       <ul>
-        {todos.map((todo) => (
-          <li key={todo.id}>{todo.task}</li>
+        {tasks.map((task) => (
+          <li key={task.id}>{task.title}</li>
         ))}
       </ul>
 
       <label>
-        <input type="text" value={newTodo} onChange={handleInputChange} placeholder="Add a task" />
+        <input type="text" value={newTask} onChange={handleInputChange} placeholder="Add a task" />
       </label>
-      <button onClick={addTodo}>Add Task</button>
+      <button onClick={addTask}>Add Task</button>
     </>
   )
 }
