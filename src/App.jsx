@@ -8,10 +8,56 @@ const supabase = createClient(
 )
 
 const App = () => {
+  // State to hold all existing tasks - should be an array to support the map method
+  const [tasks, setTasks] = useState([])
   // State to hold the new task input value
   const [newTask, setNewTask] = useState("")
   // State to hold the notes from the textarea input value
   const [newNotes, setNewNotes] = useState("")
+
+  useEffect(() => {
+    // Call the function to fetch all tasks when the component mounts
+    fetchAllTasks()
+
+    // Create a subscription to listen for real-time database changes
+    const tasksChannel = supabase
+      // Create the channel to group real-time subscriptions together
+      .channel("tasks")
+      .on("postgres_changes", { 
+        event: "INSERT", 
+        schema: "public", 
+        table: "tasks" 
+      }, payload => {
+        // Log the output from the received payload
+        console.log("Change received!", payload)
+        // Add the existing tasks from the database to the state to be stored
+        setTasks((prevTasks) => [...prevTasks, payload.new]);
+      })
+      // Subscribe to the channel
+      .subscribe()
+
+      // Cleanup the subscription on component unmount
+      return () => {
+        // Remove the channel subscription to stop listening to real-time updates
+        supabase.removeChannel(tasksChannel)
+      }
+  }, [])  // Empty dependency array to run once on mount
+
+  // Function to fetch all tasks from the database
+  const fetchAllTasks = async () => {
+    try {
+      // Select all tasks from the database table
+      const { data, error } = await supabase.from("tasks").select()
+
+      // Throw an error if an issue occurs
+      if (error) throw error
+      // Store all tasks from the database into the state
+      setTasks(data)
+    } catch (error) {
+      // Log any errors
+      console.error("Error fetching the tasks:", error)
+    }
+  }
 
   // Function to handle form input
   const handleInputChange = e => {
@@ -79,106 +125,18 @@ const App = () => {
         </label>
         <button type="submit" onClick={addNewTask}>Add Task</button>
       </form>
-    </>
-  )
-}
 
-export default App
-
-/*import { useEffect, useState } from "react"
-import { createClient } from "@supabase/supabase-js"
-
-// Use credentials from the .env file when using Vite for the application, .dotenv is not required
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_PROJECT,  // Project URL from the environment variables
-  import.meta.env.VITE_SUPABASE_ANON_KEY  // Anon key from the environment variables
-)
-
-const App = () => {
-  const [tasks, setTasks] = useState([])  // State to store the list of tasks
-  const [newTask, setNewTask] = useState("")  // State to store the new task input
-
-  useEffect(() => {
-    // Fetch all tasks when the component mounts
-    fetchAllTasks()
-
-    // Subscribe to changes in the "tasks" database table in realtime
-    const tasksChannel = supabase
-      // Create a channel named "tasks"
-      .channel("tasks")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "tasks" }, payload => {
-        // Log the received payload
-        console.log("Change received!", payload)
-        // Add the new task to the state
-        setTasks((prevTasks) => [...prevTasks, payload.new]);
-      })
-      .subscribe(); // Subscribe to the channel
-
-      // Cleanup the subscription on component unmount
-      return () => {
-        // Remove the channel subscription
-        supabase.removeChannel(tasksChannel)
-      }
-  }, [])  // Empty dependency array to run once on mount
-
-  // Function to fetch all tasks from the Supabase PostgreSQL database
-  async function fetchAllTasks() {
-    try {
-      // Select all tasks from the "tasks" database table
-      const { data, error } = await supabase.from("tasks").select()
-      // Throw an error if an issue occurs
-      if (error) throw error
-      // Pass the tasks from the database to be stored in the state
-      setTasks(data)
-    } catch (error) {
-      // Log any errors
-      console.error("Error fetching the tasks:", error)
-    }
-  }
-
-  // Handle input change for a new task
-  const handleInputChange = event => {
-    // Update state with the value entered from the input field
-    setNewTask(event.target.value)
-  }
-
-  // Function to add a new task to the database table
-  const addTask = async () => {
-    if (newTask.trim() === "") return
-
-    try {
-      const { data, error } = await supabase
-        .from("tasks")
-        // Insert a new task into the "tasks" database table
-        .insert([{ title: newTask }])
-
-      // Throw an error if there's an issue
-      if (error) throw error
-      // Clear the input after the task has been added
-      setNewTask("")
-    } catch (error) {
-      // Log any errors
-      console.error("Error adding the task:", error)
-    }
-  }
-
-  return (
-    <>
-      <h1>Task App</h1>
-
-      <ul>
+      <div style={{ display: `flex`, flexDirection: `column`, gap: `1rem`, margin: `2rem 0` }}>
+        {/* Map over the state containing the tasks from the database */}
         {tasks.map((task) => (
-          <li key={task.id}>{task.title}</li>
+          <div key={task.id} style={{ border: `1px solid black`, padding: `1rem` }}>
+            <h2>{task.title}</h2>
+            <p>{task.notes}</p>
+          </div>
         ))}
-      </ul>
-
-      <label>
-        <input type="text" value={newTask} onChange={handleInputChange} placeholder="Add a task" />
-      </label>
-      <button onClick={addTask}>Add Task</button>
+      </div>
     </>
   )
 }
 
 export default App
-*/
