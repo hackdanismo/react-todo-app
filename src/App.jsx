@@ -123,7 +123,7 @@ const App = () => {
             style={{ display: `block`, width: `500px`, margin: `1rem 0` }}
           />
         </label>
-        <button type="submit" onClick={addNewTask}>Add Task</button>
+        <button type="submit">Add Task</button>
       </form>
 
       <div style={{ display: `flex`, flexDirection: `column`, gap: `1rem`, margin: `2rem 0` }}>
