@@ -1,3 +1,64 @@
+import { useEffect, useState } from "react"
+import { createClient } from "@supabase/supabase-js"
+
+// Create the client to connect to Supabase using the credentials in the .env file
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_PROJECT,  // Project URL value
+  import.meta.env.VITE_SUPABASE_ANON_KEY  // Anon key value
+)
+
+const App = () => {
+  // State to hold the new task input value
+  const [newTask, setNewTask] = useState("")
+
+  // Function to handle form input
+  const handleInputChange = e => {
+    // Value from the input field is stored in the state
+    setNewTask(e.target.value)
+  }
+
+  // Function to add a new task to the database when button is clicked
+  const addNewTask = async () => {
+    // Remove whitespace from the start and end of the input
+    if (newTask.trim() === "") return
+
+    try {
+      const { data, error } = await supabase
+        // Get the table from the Supabase database
+        .from("tasks")
+        // Insert the new task into this database table from the state
+        .insert([{ title: newTask }])
+
+      // Throw an error if an issue occurs
+      if (error) throw error
+
+      // Clear the input field after successful insertion
+      setNewTask("")
+    } catch (error) {
+      // Log any errors
+      console.error("Error adding a new task:", error)
+    }
+  }
+
+  return (
+    <>
+      <h1>Tasks</h1>
+
+      <label>
+        <input 
+          type="text" 
+          value={newTask} 
+          onChange={handleInputChange}
+          placeholder="Add a task" 
+        />
+        <button onClick={addNewTask}>Add Task</button>
+      </label>
+    </>
+  )
+}
+
+export default App
+
 /*import { useEffect, useState } from "react"
 import { createClient } from "@supabase/supabase-js"
 
