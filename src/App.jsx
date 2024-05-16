@@ -10,6 +10,8 @@ const supabase = createClient(
 const App = () => {
   // State to hold the new task input value
   const [newTask, setNewTask] = useState("")
+  // State to hold the notes from the textarea input value
+  const [newNotes, setNewNotes] = useState("")
 
   // Function to handle form input
   const handleInputChange = e => {
@@ -17,23 +19,36 @@ const App = () => {
     setNewTask(e.target.value)
   }
 
+  // Function to handle notes input
+  const handleNotesInputChange = e => {
+    // Value from the notes textarea field is stored in the state
+    setNewNotes(e.target.value)
+  }
+
   // Function to add a new task to the database when button is clicked
   const addNewTask = async () => {
-    // Remove whitespace from the start and end of the input
-    if (newTask.trim() === "") return
+    // Remove whitespace from the start and end of the the form input fields
+    if (newTask.trim() === "" && newNotes.trim() === "") return
 
     try {
       const { data, error } = await supabase
         // Get the table from the Supabase database
         .from("tasks")
         // Insert the new task into this database table from the state
-        .insert([{ title: newTask }])
+        .insert([
+          { 
+            title: newTask,
+            notes: newNotes,
+          }
+        ])
 
       // Throw an error if an issue occurs
       if (error) throw error
 
       // Clear the input field after successful insertion
       setNewTask("")
+      // Clear the textarea input field after successful insertion
+      setNewNotes("")
     } catch (error) {
       // Log any errors
       console.error("Error adding a new task:", error)
@@ -51,8 +66,15 @@ const App = () => {
           onChange={handleInputChange}
           placeholder="Add a task" 
         />
-        <button onClick={addNewTask}>Add Task</button>
       </label>
+      <label>
+        <textarea
+          value={newNotes}
+          onChange={handleNotesInputChange}
+          placeholder="Add notes"
+        />
+      </label>
+      <button onClick={addNewTask}>Add Task</button>
     </>
   )
 }
