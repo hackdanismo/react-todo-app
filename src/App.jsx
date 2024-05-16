@@ -59,22 +59,26 @@ const App = () => {
     <>
       <h1>Tasks</h1>
 
-      <label>
-        <input 
-          type="text" 
-          value={newTask} 
-          onChange={handleInputChange}
-          placeholder="Add a task" 
-        />
-      </label>
-      <label>
-        <textarea
-          value={newNotes}
-          onChange={handleNotesInputChange}
-          placeholder="Add notes"
-        />
-      </label>
-      <button onClick={addNewTask}>Add Task</button>
+      <form onSubmit={addNewTask}>
+        <label>
+          <input 
+            type="text" 
+            value={newTask} 
+            onChange={handleInputChange}
+            placeholder="Add a task" 
+            style={{ display: `block`, width: `300px`, padding: `0.5rem 0`, margin: `1rem 0` }}
+          />
+        </label>
+        <label>
+          <textarea
+            value={newNotes}
+            onChange={handleNotesInputChange}
+            placeholder="Add notes"
+            style={{ display: `block`, width: `500px`, margin: `1rem 0` }}
+          />
+        </label>
+        <button type="submit" onClick={addNewTask}>Add Task</button>
+      </form>
     </>
   )
 }
