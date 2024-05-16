@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+/*import { useEffect, useState } from "react"
 import { createClient } from "@supabase/supabase-js"
 
 // Use credentials from the .env file when using Vite for the application, .dotenv is not required
@@ -94,3 +94,4 @@ const App = () => {
 }
 
 export default App
+*/
