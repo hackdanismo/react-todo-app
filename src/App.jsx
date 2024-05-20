@@ -101,11 +101,30 @@ const App = () => {
     }
   }
 
+  // Function to remove/delete a task from the database when button is clicked
+  const deleteTask = async (taskId) => {
+    try {
+      const { error } = await supabase
+        .from("tasks")
+        .delete()
+        .eq("id", taskId)
+
+      // Throw an error if an issue occurs
+      if (error) throw error
+
+      // Update the state to remove the deleted task
+      setTasks((prevTasks) => prevTasks.filter(task => task.id !== taskId))
+    } catch (error) {
+      // Log any errors
+      console.error("Error deleting/removing the task:", error)
+    }
+  }
+
   return (
     <>
       <h1>Tasks</h1>
 
-      <form onSubmit={addNewTask}>
+      <form onSubmit={(e) => { e.preventDefault(); addNewTask(); }}>
         <label>
           <input 
             type="text" 
@@ -132,6 +151,7 @@ const App = () => {
           <div key={task.id} style={{ border: `1px solid black`, padding: `1rem` }}>
             <h2>{task.title}</h2>
             <p>{task.notes}</p>
+            <button onClick={() => deleteTask(task.id)}>Delete Task</button>
           </div>
         ))}
       </div>
