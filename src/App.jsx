@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { createClient } from "@supabase/supabase-js"
 
 import Layout from "./components/layout"
+import Modal from "./components/modal"
 
 // Create the client to connect to Supabase using the credentials in the .env file
 const supabase = createClient(
@@ -19,6 +20,7 @@ const App = () => {
   const [editTaskId, setEditTaskId] = useState(null)
   const [editTitle, setEditTitle] = useState("")
   const [editNotes, setEditNotes] = useState("")
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
   useEffect(() => {
     // Call the function to fetch all tasks when the component mounts
@@ -167,26 +169,30 @@ const App = () => {
       <Layout>
         <h1>Tasks</h1>
 
-        <form onSubmit={(e) => { e.preventDefault(); addNewTask(); }}>
-          <label>
-            <input 
-              type="text" 
-              value={newTask} 
-              onChange={handleInputChange}
-              placeholder="Add a task" 
-              style={{ display: `block`, width: `300px`, padding: `0.5rem 0`, margin: `1rem 0` }}
-            />
-          </label>
-          <label>
-            <textarea
-              value={newNotes}
-              onChange={handleNotesInputChange}
-              placeholder="Add notes"
-              style={{ display: `block`, width: `500px`, margin: `1rem 0` }}
-            />
-          </label>
-          <button type="submit">Add Task</button>
-        </form>
+        <button onClick={() => setIsModalOpen(true)}>Add Task</button>
+
+        <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
+          <form onSubmit={(e) => { e.preventDefault(); addNewTask(); }}>
+            <label>
+              <input 
+                type="text" 
+                value={newTask} 
+                onChange={handleInputChange}
+                placeholder="Add a task" 
+                style={{ display: `block`, width: `300px`, padding: `0.5rem 0`, margin: `1rem 0` }}
+              />
+            </label>
+            <label>
+              <textarea
+                value={newNotes}
+                onChange={handleNotesInputChange}
+                placeholder="Add notes"
+                style={{ display: `block`, width: `500px`, margin: `1rem 0` }}
+              />
+            </label>
+            <button type="submit">Add Task</button>
+          </form>
+        </Modal>
 
         <div style={{ display: `flex`, flexDirection: `column`, gap: `1rem`, margin: `2rem 0` }}>
           {/* Map over the state containing the tasks from the database */}
