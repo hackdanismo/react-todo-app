@@ -150,7 +150,7 @@ const App = () => {
         {tasks.map((task) => (
           <div key={task.id} style={{ border: `1px solid black`, padding: `1rem` }}>
             <h2>{task.title}</h2>
-            <p>{task.notes}</p>
+            {task.notes && (<p>{task.notes}</p>)}
             <button onClick={() => deleteTask(task.id)}>Delete Task</button>
           </div>
         ))}
