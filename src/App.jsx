@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react"
 import { createClient } from "@supabase/supabase-js"
 
+import Layout from "./components/layout"
+
 // Create the client to connect to Supabase using the credentials in the .env file
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_PROJECT,  // Project URL value
@@ -162,59 +164,61 @@ const App = () => {
 
   return (
     <>
-      <h1>Tasks</h1>
+      <Layout>
+        <h1>Tasks</h1>
 
-      <form onSubmit={(e) => { e.preventDefault(); addNewTask(); }}>
-        <label>
-          <input 
-            type="text" 
-            value={newTask} 
-            onChange={handleInputChange}
-            placeholder="Add a task" 
-            style={{ display: `block`, width: `300px`, padding: `0.5rem 0`, margin: `1rem 0` }}
-          />
-        </label>
-        <label>
-          <textarea
-            value={newNotes}
-            onChange={handleNotesInputChange}
-            placeholder="Add notes"
-            style={{ display: `block`, width: `500px`, margin: `1rem 0` }}
-          />
-        </label>
-        <button type="submit">Add Task</button>
-      </form>
+        <form onSubmit={(e) => { e.preventDefault(); addNewTask(); }}>
+          <label>
+            <input 
+              type="text" 
+              value={newTask} 
+              onChange={handleInputChange}
+              placeholder="Add a task" 
+              style={{ display: `block`, width: `300px`, padding: `0.5rem 0`, margin: `1rem 0` }}
+            />
+          </label>
+          <label>
+            <textarea
+              value={newNotes}
+              onChange={handleNotesInputChange}
+              placeholder="Add notes"
+              style={{ display: `block`, width: `500px`, margin: `1rem 0` }}
+            />
+          </label>
+          <button type="submit">Add Task</button>
+        </form>
 
-      <div style={{ display: `flex`, flexDirection: `column`, gap: `1rem`, margin: `2rem 0` }}>
-        {/* Map over the state containing the tasks from the database */}
-        {tasks.map((task) => (
-          <div key={task.id} style={{ border: `1px solid black`, padding: `1rem` }}>
+        <div style={{ display: `flex`, flexDirection: `column`, gap: `1rem`, margin: `2rem 0` }}>
+          {/* Map over the state containing the tasks from the database */}
+          {tasks.map((task) => (
+            <div key={task.id} style={{ border: `1px solid black`, padding: `1rem` }}>
 
-            {editTaskId === task.id ? (
-              <>
-                <input
-                  type="text"
-                  value={editTitle}
-                  onChange={handleEditTitleChange}
-                />
-                <textarea
-                  value={editNotes}
-                  onChange={handleEditNotesChange}
-                />
-                <button onClick={() => saveEdit(task.id)}>Save</button>
-                <button onClick={() => setEditTaskId(null)}>Cancel</button>
-              </>
-            ) : (
-              <>
-                <h2>{task.title}</h2>
-                {task.notes && (<p>{task.notes}</p>)}
-                <button onClick={() => startEditing(task)}>Edit Task</button>
-                <button onClick={() => deleteTask(task.id)}>Delete Task</button>
-              </>
-            )}
-          </div>
-        ))}
-      </div>
+              {editTaskId === task.id ? (
+                <>
+                  <input
+                    type="text"
+                    value={editTitle}
+                    onChange={handleEditTitleChange}
+                  />
+                  <textarea
+                    value={editNotes}
+                    onChange={handleEditNotesChange}
+                  />
+                  <button onClick={() => saveEdit(task.id)}>Save</button>
+                  <button onClick={() => setEditTaskId(null)}>Cancel</button>
+                </>
+              ) : (
+                <>
+                  <h2>{task.title}</h2>
+                  {task.notes && (<p>{task.notes}</p>)}
+                  <button onClick={() => startEditing(task)}>Edit Task</button>
+                  <button onClick={() => deleteTask(task.id)}>Delete Task</button>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      </Layout>
     </>
   )
 }
