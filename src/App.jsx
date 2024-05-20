@@ -14,6 +14,9 @@ const App = () => {
   const [newTask, setNewTask] = useState("")
   // State to hold the notes from the textarea input value
   const [newNotes, setNewNotes] = useState("")
+  const [editTaskId, setEditTaskId] = useState(null)
+  const [editTitle, setEditTitle] = useState("")
+  const [editNotes, setEditNotes] = useState("")
 
   useEffect(() => {
     // Call the function to fetch all tasks when the component mounts
@@ -120,6 +123,43 @@ const App = () => {
     }
   }
 
+  const startEditing = task => {
+    setEditTaskId(task.id)
+    setEditTitle(task.title)
+    setEditNotes(task.notes)
+  }
+
+  const handleEditTitleChange = e => {
+    setEditTitle(e.target.value)
+  }
+
+  const handleEditNotesChange = e => {
+    setEditNotes(e.target.value)
+  }
+
+  const saveEdit = async (taskId) => {
+    try {
+      const { error } = await supabase
+        .from("tasks")
+        .update({ title: editTitle, notes: editNotes })
+        .eq("id", taskId)
+
+      if (error) throw error
+
+      setTasks((prevTasks) => 
+        prevTasks.map((task) => 
+          task.id === taskId ? { ...task, title: editTitle, notes: editNotes } : task
+        )
+      )
+
+      setEditTaskId(null)
+      setEditTitle("")
+      setEditNotes("")
+    } catch (error) {
+      console.error("Error updating/editing the task:", error)
+    }
+  }
+
   return (
     <>
       <h1>Tasks</h1>
@@ -149,9 +189,29 @@ const App = () => {
         {/* Map over the state containing the tasks from the database */}
         {tasks.map((task) => (
           <div key={task.id} style={{ border: `1px solid black`, padding: `1rem` }}>
-            <h2>{task.title}</h2>
-            {task.notes && (<p>{task.notes}</p>)}
-            <button onClick={() => deleteTask(task.id)}>Delete Task</button>
+
+            {editTaskId === task.id ? (
+              <>
+                <input
+                  type="text"
+                  value={editTitle}
+                  onChange={handleEditTitleChange}
+                />
+                <textarea
+                  value={editNotes}
+                  onChange={handleEditNotesChange}
+                />
+                <button onClick={() => saveEdit(task.id)}>Save</button>
+                <button onClick={() => setEditTaskId(null)}>Cancel</button>
+              </>
+            ) : (
+              <>
+                <h2>{task.title}</h2>
+                {task.notes && (<p>{task.notes}</p>)}
+                <button onClick={() => startEditing(task)}>Edit Task</button>
+                <button onClick={() => deleteTask(task.id)}>Delete Task</button>
+              </>
+            )}
           </div>
         ))}
       </div>
