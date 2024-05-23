@@ -21,6 +21,12 @@ const App = () => {
   const [editTitle, setEditTitle] = useState("")
   const [editNotes, setEditNotes] = useState("")
   const [isModalOpen, setIsModalOpen] = useState(false)
+  // State to hold search queries
+  const [searchQuery, setSearchQuery] = useState("")
+  // State to hold hide completed tasks toggle
+  const [hideCompleted, setHideCompleted] = useState(false)
+  // State to hold the ordering filter
+  const [sortOrder, setSortOrder] = useState("newest")
 
   useEffect(() => {
     // Call the function to fetch all tasks when the component mounts
@@ -49,14 +55,14 @@ const App = () => {
         // Remove the channel subscription to stop listening to real-time updates
         supabase.removeChannel(tasksChannel)
       }
-  }, [])  // Empty dependency array to run once on mount
+  }, [sortOrder])  // Empty dependency array to run once on mount // added sortOrder as a dependency
 
   // Function to fetch all tasks from the database
   const fetchAllTasks = async () => {
     try {
       // Select all tasks from the database table
       // Tasks to be ordered by the id in descending order
-      const { data, error } = await supabase.from("tasks").select().order("id", { ascending: false })
+      const { data, error } = await supabase.from("tasks").select().order("id", { ascending: sortOrder === "oldest" })
 
       // Throw an error if an issue occurs
       if (error) throw error
@@ -143,6 +149,18 @@ const App = () => {
     setEditNotes(e.target.value)
   }
 
+  const handleSearchInputChange = e => {
+    setSearchQuery(e.target.value)
+  }
+
+  const handleHideCompletedChange = e => {
+    setHideCompleted(e.target.checked)
+  }
+
+  const handleSortOrderChange = e => {
+    setSortOrder(e.target.value)
+  }
+
   const saveEdit = async (taskId) => {
     try {
       const { error } = await supabase
@@ -186,10 +204,50 @@ const App = () => {
     }
   }
 
+  const filteredTasks = tasks.filter(task =>
+    (task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    task.notes.toLowerCase().includes(searchQuery.toLowerCase())) &&
+    // Hide completed tasks when the toggle option is selected
+    (!hideCompleted || !task.completed)
+  )
+
   return (
     <>
       <Layout>
         <h1>Tasks</h1>
+
+        {/* Search field */}
+        <label>
+          <input
+            type="text"
+            placeholder="Search tasks"
+            value={searchQuery}
+            onChange={handleSearchInputChange}
+            style={{ display: `block`, width: `300px`, padding: `0.5rem 0`, margin: `1rem 0` }}
+          />
+        </label>
+
+        {/* Sorting field */}
+        <label>
+          Sort by:
+          <select 
+            value={sortOrder}
+            onChange={handleSortOrderChange}
+          >
+            <option value="newest">Newest to Oldest</option>
+            <option value="oldest">Oldest to Newest</option>
+          </select>
+        </label>
+
+        {/* Hide completed tasks */}
+        <label>
+          <input
+            type="checkbox"
+            checked={hideCompleted}
+            onChange={handleHideCompletedChange}
+          />
+          Hide Completed Tasks
+        </label>
 
         <button onClick={() => setIsModalOpen(true)}>Add Task</button>
 
@@ -217,37 +275,41 @@ const App = () => {
         </Modal>
 
         <div style={{ display: `flex`, flexDirection: `column`, gap: `1rem`, margin: `2rem 0` }}>
-          {/* Map over the state containing the tasks from the database */}
-          {tasks.map((task) => (
-            <div key={task.id} style={{ border: `1px solid black`, padding: `1rem` }}>
-
-              {editTaskId === task.id ? (
-                <>
-                  <input
-                    type="text"
-                    value={editTitle}
-                    onChange={handleEditTitleChange}
-                  />
-                  <textarea
-                    value={editNotes}
-                    onChange={handleEditNotesChange}
-                  />
-                  <button onClick={() => saveEdit(task.id)}>Save</button>
-                  <button onClick={() => setEditTaskId(null)}>Cancel</button>
-                </>
-              ) : (
-                <>
-                  <h2 style={{ textDecoration: task.completed ? "line-through" : "none" }}>{task.title}</h2>
-                  {task.notes && (<p>{task.notes}</p>)}
-                  <button onClick={() => startEditing(task)}>Edit Task</button>
-                  <button onClick={() => deleteTask(task.id)}>Delete Task</button>
-                  <button onClick={() => toggleCompletion(task.id, task.completed)}>
-                    {task.completed ? "Mark as Incomplete" : "Mark as Completed"}
-                  </button>
-                </>
-              )}
-            </div>
-          ))}
+          {/* Conditionally rendering a message if no results are returned from a search */}
+          {filteredTasks.length === 0 ? (
+            <p>No Task(s) Found</p>
+          ) : (
+            /* Map over the state containing the tasks from the database */
+            filteredTasks.map((task) => (
+              <div key={task.id} style={{ border: `1px solid black`, padding: `1rem` }}>
+                {editTaskId === task.id ? (
+                  <>
+                    <input
+                      type="text"
+                      value={editTitle}
+                      onChange={handleEditTitleChange}
+                    />
+                    <textarea
+                      value={editNotes}
+                      onChange={handleEditNotesChange}
+                    />
+                    <button onClick={() => saveEdit(task.id)}>Save</button>
+                    <button onClick={() => setEditTaskId(null)}>Cancel</button>
+                  </>
+                ) : (
+                  <>
+                    <h2 style={{ textDecoration: task.completed ? "line-through" : "none" }}>{task.title}</h2>
+                    {task.notes && (<p>{task.notes}</p>)}
+                    <button onClick={() => startEditing(task)}>Edit Task</button>
+                    <button onClick={() => deleteTask(task.id)}>Delete Task</button>
+                    <button onClick={() => toggleCompletion(task.id, task.completed)}>
+                      {task.completed ? "Mark as Incomplete" : "Mark as Completed"}
+                    </button>
+                  </>
+                )}
+              </div>
+            ))
+          )}
         </div>
       </Layout>
     </>
