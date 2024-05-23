@@ -38,7 +38,8 @@ const App = () => {
         // Log the output from the received payload
         console.log("Change received!", payload)
         // Add the existing tasks from the database to the state to be stored
-        setTasks((prevTasks) => [...prevTasks, payload.new]);
+        // Add the new task at the beginning of the list
+        setTasks((prevTasks) => [payload.new, ...prevTasks]);
       })
       // Subscribe to the channel
       .subscribe()
@@ -54,7 +55,8 @@ const App = () => {
   const fetchAllTasks = async () => {
     try {
       // Select all tasks from the database table
-      const { data, error } = await supabase.from("tasks").select()
+      // Tasks to be ordered by the id in descending order
+      const { data, error } = await supabase.from("tasks").select().order("id", { ascending: false })
 
       // Throw an error if an issue occurs
       if (error) throw error
