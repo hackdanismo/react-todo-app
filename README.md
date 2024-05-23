@@ -7,17 +7,22 @@ Currently, two official plugins are available:
 - [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
 - [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
 
+## Live Website
+`https://tourmaline-blini-9dcc52.netlify.app/`
+
 ## SQL
 To create a `table` inside the `Supabase` `PostgreSQL` database, we can use `SQL (Structured Query Language)`:
 
 ```sql
  -- Create the table
- CREATE TABLE task (
+ CREATE TABLE tasks (
    id SERIAL PRIMARY KEY,
-   title VARCHAR(255) NOT NULL
+   title text NOT NULL,
+   notes text NOT NULL,
+   completed BOOLEAN DEFAULT FALSE
  );
  -- Insert some sample data into the table
- INSERT INTO task (title) VALUES ('Tidy the room');
+ INSERT INTO tasks (title, notes, completed) VALUES ('Tidy the room', 'Tidy the room so it can be nice and organised.', FALSE);
 ```
 
 ## Environment variables
