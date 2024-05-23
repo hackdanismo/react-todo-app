@@ -23,6 +23,8 @@ const App = () => {
   const [isModalOpen, setIsModalOpen] = useState(false)
   // State to hold search queries
   const [searchQuery, setSearchQuery] = useState("")
+  // State to hold hide completed tasks toggle
+  const [hideCompleted, setHideCompleted] = useState(false)
 
   useEffect(() => {
     // Call the function to fetch all tasks when the component mounts
@@ -149,6 +151,10 @@ const App = () => {
     setSearchQuery(e.target.value)
   }
 
+  const handleHideCompletedChange = e => {
+    setHideCompleted(e.target.checked)
+  }
+
   const saveEdit = async (taskId) => {
     try {
       const { error } = await supabase
@@ -193,8 +199,10 @@ const App = () => {
   }
 
   const filteredTasks = tasks.filter(task =>
-    task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    task.notes.toLowerCase().includes(searchQuery.toLowerCase())
+    (task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    task.notes.toLowerCase().includes(searchQuery.toLowerCase())) &&
+    // Hide completed tasks when the toggle option is selected
+    (!hideCompleted || !task.completed)
   )
 
   return (
@@ -202,13 +210,26 @@ const App = () => {
       <Layout>
         <h1>Tasks</h1>
 
-        <input
-          type="text"
-          placeholder="Search tasks"
-          value={searchQuery}
-          onChange={handleSearchInputChange}
-          style={{ display: `block`, width: `300px`, padding: `0.5rem 0`, margin: `1rem 0` }}
-        />
+        {/* Search field */}
+        <label>
+          <input
+            type="text"
+            placeholder="Search tasks"
+            value={searchQuery}
+            onChange={handleSearchInputChange}
+            style={{ display: `block`, width: `300px`, padding: `0.5rem 0`, margin: `1rem 0` }}
+          />
+        </label>
+
+        {/* Hide completed tasks */}
+        <label>
+          <input
+            type="checkbox"
+            checked={hideCompleted}
+            onChange={handleHideCompletedChange}
+          />
+          Hide Completed Tasks
+        </label>
 
         <button onClick={() => setIsModalOpen(true)}>Add Task</button>
 
