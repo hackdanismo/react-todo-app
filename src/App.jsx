@@ -164,6 +164,26 @@ const App = () => {
     }
   }
 
+  // Function to toggle the task completion
+  const toggleCompletion = async (taskId, currentStatus) => {
+    try {
+      const { error } = await supabase
+        .from("tasks")
+        .update({ completed: !currentStatus })
+        .eq("id", taskId)
+
+      if (error) throw error
+
+      setTasks((prevTasks) => 
+        prevTasks.map((task) =>
+          task.id === taskId ? { ...task, completed: !currentStatus } : task
+        )
+      )
+    } catch (error) {
+      console.error("Error toggling task completion:", error)
+    }
+  }
+
   return (
     <>
       <Layout>
@@ -215,10 +235,13 @@ const App = () => {
                 </>
               ) : (
                 <>
-                  <h2>{task.title}</h2>
+                  <h2 style={{ textDecoration: task.completed ? "line-through" : "none" }}>{task.title}</h2>
                   {task.notes && (<p>{task.notes}</p>)}
                   <button onClick={() => startEditing(task)}>Edit Task</button>
                   <button onClick={() => deleteTask(task.id)}>Delete Task</button>
+                  <button onClick={() => toggleCompletion(task.id, task.completed)}>
+                    {task.completed ? "Mark as Incomplete" : "Mark as Completed"}
+                  </button>
                 </>
               )}
             </div>
