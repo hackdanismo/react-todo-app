@@ -25,6 +25,8 @@ const App = () => {
   const [searchQuery, setSearchQuery] = useState("")
   // State to hold hide completed tasks toggle
   const [hideCompleted, setHideCompleted] = useState(false)
+  // State to hold the ordering filter
+  const [sortOrder, setSortOrder] = useState("newest")
 
   useEffect(() => {
     // Call the function to fetch all tasks when the component mounts
@@ -53,14 +55,14 @@ const App = () => {
         // Remove the channel subscription to stop listening to real-time updates
         supabase.removeChannel(tasksChannel)
       }
-  }, [])  // Empty dependency array to run once on mount
+  }, [sortOrder])  // Empty dependency array to run once on mount // added sortOrder as a dependency
 
   // Function to fetch all tasks from the database
   const fetchAllTasks = async () => {
     try {
       // Select all tasks from the database table
       // Tasks to be ordered by the id in descending order
-      const { data, error } = await supabase.from("tasks").select().order("id", { ascending: false })
+      const { data, error } = await supabase.from("tasks").select().order("id", { ascending: sortOrder === "oldest" })
 
       // Throw an error if an issue occurs
       if (error) throw error
@@ -155,6 +157,10 @@ const App = () => {
     setHideCompleted(e.target.checked)
   }
 
+  const handleSortOrderChange = e => {
+    setSortOrder(e.target.value)
+  }
+
   const saveEdit = async (taskId) => {
     try {
       const { error } = await supabase
@@ -219,6 +225,18 @@ const App = () => {
             onChange={handleSearchInputChange}
             style={{ display: `block`, width: `300px`, padding: `0.5rem 0`, margin: `1rem 0` }}
           />
+        </label>
+
+        {/* Sorting field */}
+        <label>
+          Sort by:
+          <select 
+            value={sortOrder}
+            onChange={handleSortOrderChange}
+          >
+            <option value="newest">Newest to Oldest</option>
+            <option value="oldest">Oldest to Newest</option>
+          </select>
         </label>
 
         {/* Hide completed tasks */}
