@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react"
 import { createClient } from "@supabase/supabase-js"
 
+import Layout from "./components/layout"
+import Modal from "./components/modal"
+
 // Create the client to connect to Supabase using the credentials in the .env file
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_PROJECT,  // Project URL value
@@ -14,6 +17,10 @@ const App = () => {
   const [newTask, setNewTask] = useState("")
   // State to hold the notes from the textarea input value
   const [newNotes, setNewNotes] = useState("")
+  const [editTaskId, setEditTaskId] = useState(null)
+  const [editTitle, setEditTitle] = useState("")
+  const [editNotes, setEditNotes] = useState("")
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
   useEffect(() => {
     // Call the function to fetch all tasks when the component mounts
@@ -31,7 +38,8 @@ const App = () => {
         // Log the output from the received payload
         console.log("Change received!", payload)
         // Add the existing tasks from the database to the state to be stored
-        setTasks((prevTasks) => [...prevTasks, payload.new]);
+        // Add the new task at the beginning of the list
+        setTasks((prevTasks) => [payload.new, ...prevTasks]);
       })
       // Subscribe to the channel
       .subscribe()
@@ -47,7 +55,8 @@ const App = () => {
   const fetchAllTasks = async () => {
     try {
       // Select all tasks from the database table
-      const { data, error } = await supabase.from("tasks").select()
+      // Tasks to be ordered by the id in descending order
+      const { data, error } = await supabase.from("tasks").select().order("id", { ascending: false })
 
       // Throw an error if an issue occurs
       if (error) throw error
@@ -101,40 +110,146 @@ const App = () => {
     }
   }
 
+  // Function to remove/delete a task from the database when button is clicked
+  const deleteTask = async (taskId) => {
+    try {
+      const { error } = await supabase
+        .from("tasks")
+        .delete()
+        .eq("id", taskId)
+
+      // Throw an error if an issue occurs
+      if (error) throw error
+
+      // Update the state to remove the deleted task
+      setTasks((prevTasks) => prevTasks.filter(task => task.id !== taskId))
+    } catch (error) {
+      // Log any errors
+      console.error("Error deleting/removing the task:", error)
+    }
+  }
+
+  const startEditing = task => {
+    setEditTaskId(task.id)
+    setEditTitle(task.title)
+    setEditNotes(task.notes)
+  }
+
+  const handleEditTitleChange = e => {
+    setEditTitle(e.target.value)
+  }
+
+  const handleEditNotesChange = e => {
+    setEditNotes(e.target.value)
+  }
+
+  const saveEdit = async (taskId) => {
+    try {
+      const { error } = await supabase
+        .from("tasks")
+        .update({ title: editTitle, notes: editNotes })
+        .eq("id", taskId)
+
+      if (error) throw error
+
+      setTasks((prevTasks) => 
+        prevTasks.map((task) => 
+          task.id === taskId ? { ...task, title: editTitle, notes: editNotes } : task
+        )
+      )
+
+      setEditTaskId(null)
+      setEditTitle("")
+      setEditNotes("")
+    } catch (error) {
+      console.error("Error updating/editing the task:", error)
+    }
+  }
+
+  // Function to toggle the task completion
+  const toggleCompletion = async (taskId, currentStatus) => {
+    try {
+      const { error } = await supabase
+        .from("tasks")
+        .update({ completed: !currentStatus })
+        .eq("id", taskId)
+
+      if (error) throw error
+
+      setTasks((prevTasks) => 
+        prevTasks.map((task) =>
+          task.id === taskId ? { ...task, completed: !currentStatus } : task
+        )
+      )
+    } catch (error) {
+      console.error("Error toggling task completion:", error)
+    }
+  }
+
   return (
     <>
-      <h1>Tasks</h1>
+      <Layout>
+        <h1>Tasks</h1>
 
-      <form onSubmit={addNewTask}>
-        <label>
-          <input 
-            type="text" 
-            value={newTask} 
-            onChange={handleInputChange}
-            placeholder="Add a task" 
-            style={{ display: `block`, width: `300px`, padding: `0.5rem 0`, margin: `1rem 0` }}
-          />
-        </label>
-        <label>
-          <textarea
-            value={newNotes}
-            onChange={handleNotesInputChange}
-            placeholder="Add notes"
-            style={{ display: `block`, width: `500px`, margin: `1rem 0` }}
-          />
-        </label>
-        <button type="submit">Add Task</button>
-      </form>
+        <button onClick={() => setIsModalOpen(true)}>Add Task</button>
 
-      <div style={{ display: `flex`, flexDirection: `column`, gap: `1rem`, margin: `2rem 0` }}>
-        {/* Map over the state containing the tasks from the database */}
-        {tasks.map((task) => (
-          <div key={task.id} style={{ border: `1px solid black`, padding: `1rem` }}>
-            <h2>{task.title}</h2>
-            <p>{task.notes}</p>
-          </div>
-        ))}
-      </div>
+        <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
+          <form onSubmit={(e) => { e.preventDefault(); addNewTask(); }}>
+            <label>
+              <input 
+                type="text" 
+                value={newTask} 
+                onChange={handleInputChange}
+                placeholder="Add a task" 
+                style={{ display: `block`, width: `300px`, padding: `0.5rem 0`, margin: `1rem 0` }}
+              />
+            </label>
+            <label>
+              <textarea
+                value={newNotes}
+                onChange={handleNotesInputChange}
+                placeholder="Add notes"
+                style={{ display: `block`, width: `500px`, margin: `1rem 0` }}
+              />
+            </label>
+            <button type="submit">Add Task</button>
+          </form>
+        </Modal>
+
+        <div style={{ display: `flex`, flexDirection: `column`, gap: `1rem`, margin: `2rem 0` }}>
+          {/* Map over the state containing the tasks from the database */}
+          {tasks.map((task) => (
+            <div key={task.id} style={{ border: `1px solid black`, padding: `1rem` }}>
+
+              {editTaskId === task.id ? (
+                <>
+                  <input
+                    type="text"
+                    value={editTitle}
+                    onChange={handleEditTitleChange}
+                  />
+                  <textarea
+                    value={editNotes}
+                    onChange={handleEditNotesChange}
+                  />
+                  <button onClick={() => saveEdit(task.id)}>Save</button>
+                  <button onClick={() => setEditTaskId(null)}>Cancel</button>
+                </>
+              ) : (
+                <>
+                  <h2 style={{ textDecoration: task.completed ? "line-through" : "none" }}>{task.title}</h2>
+                  {task.notes && (<p>{task.notes}</p>)}
+                  <button onClick={() => startEditing(task)}>Edit Task</button>
+                  <button onClick={() => deleteTask(task.id)}>Delete Task</button>
+                  <button onClick={() => toggleCompletion(task.id, task.completed)}>
+                    {task.completed ? "Mark as Incomplete" : "Mark as Completed"}
+                  </button>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      </Layout>
     </>
   )
 }

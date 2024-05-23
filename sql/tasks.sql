@@ -2,7 +2,8 @@
  CREATE TABLE tasks (
    id SERIAL PRIMARY KEY,
    title text NOT NULL,
-   notes text NOT NULL
+   notes text NOT NULL,
+   completed BOOLEAN DEFAULT FALSE
  );
  -- Insert some sample data into the table
- INSERT INTO tasks (title, notes) VALUES ('Tidy the room', 'Tidy the room so it can be nice and organised.');
+ INSERT INTO tasks (title, notes, completed) VALUES ('Tidy the room', 'Tidy the room so it can be nice and organised.', FALSE);
