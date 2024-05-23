@@ -21,6 +21,8 @@ const App = () => {
   const [editTitle, setEditTitle] = useState("")
   const [editNotes, setEditNotes] = useState("")
   const [isModalOpen, setIsModalOpen] = useState(false)
+  // State to hold search queries
+  const [searchQuery, setSearchQuery] = useState("")
 
   useEffect(() => {
     // Call the function to fetch all tasks when the component mounts
@@ -143,6 +145,10 @@ const App = () => {
     setEditNotes(e.target.value)
   }
 
+  const handleSearchInputChange = e => {
+    setSearchQuery(e.target.value)
+  }
+
   const saveEdit = async (taskId) => {
     try {
       const { error } = await supabase
@@ -186,10 +192,23 @@ const App = () => {
     }
   }
 
+  const filteredTasks = tasks.filter(task =>
+    task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    task.notes.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
   return (
     <>
       <Layout>
         <h1>Tasks</h1>
+
+        <input
+          type="text"
+          placeholder="Search tasks"
+          value={searchQuery}
+          onChange={handleSearchInputChange}
+          style={{ display: `block`, width: `300px`, padding: `0.5rem 0`, margin: `1rem 0` }}
+        />
 
         <button onClick={() => setIsModalOpen(true)}>Add Task</button>
 
@@ -218,7 +237,7 @@ const App = () => {
 
         <div style={{ display: `flex`, flexDirection: `column`, gap: `1rem`, margin: `2rem 0` }}>
           {/* Map over the state containing the tasks from the database */}
-          {tasks.map((task) => (
+          {filteredTasks.map((task) => (
             <div key={task.id} style={{ border: `1px solid black`, padding: `1rem` }}>
 
               {editTaskId === task.id ? (
