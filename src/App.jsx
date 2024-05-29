@@ -11,6 +11,10 @@ const supabase = createClient(
   import.meta.env.VITE_SUPABASE_ANON_KEY  // Anon key value
 )
 
+const CACHE_KEY = "tasksCache"
+const CACHE_TIME_KEY= "tasksCacheTime"
+const CACHE_DURATION = 5 * 60 * 1000  // Cache duration in miliseconds (5 minutes)
+
 const App = () => {
   // State to hold all existing tasks - should be an array to support the map method
   const [tasks, setTasks] = useState([])
@@ -34,8 +38,18 @@ const App = () => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Call the function to fetch all tasks when the component mounts
-    fetchAllTasks()
+    const cachedTasks = JSON.parse(localStorage.getItem(CACHE_KEY))
+    const cacheTime = localStorage.getItem(CACHE_TIME_KEY)
+
+    if (cachedTasks && cacheTime && Date.now() - cacheTime < CACHE_DURATION) {
+      console.log("Using cached tasks");
+      setTasks(cachedTasks)
+      setTaskCount(cachedTasks.length)
+      setLoading(false)
+    } else {
+      // Call the function to fetch all tasks when the component mounts
+      fetchAllTasks()
+    }
 
     // Create a subscription to listen for real-time database changes
     const tasksChannel = supabase
@@ -54,6 +68,8 @@ const App = () => {
         setTasks((prevTasks) => {
           const newTasks = [payload.new, ...prevTasks]
           setTaskCount(newTasks.length)
+          localStorage.setItem(CACHE_KEY, JSON.stringify(newTasks))
+          localStorage.setItem(CACHE_TIME_KEY, Date.now())
           return newTasks
         })
       })
@@ -80,6 +96,8 @@ const App = () => {
       setTasks(data)
       // Update the task count
       setTaskCount(data.length)
+      localStorage.setItem(CACHE_KEY, JSON.stringify(data))
+      localStorage.setItem(CACHE_TIME_KEY, Date.now())
     } catch (error) {
       // Log any errors
       console.error("Error fetching the tasks:", error)
@@ -146,6 +164,8 @@ const App = () => {
       setTasks((prevTasks) => {
         const newTasks = prevTasks.filter(task => task.id !== taskId)
         setTaskCount(newTasks.length)
+        localStorage.setItem(CACHE_KEY, JSON.stringify(newTasks))
+        localStorage.setItem(CACHE_TIME_KEY, Date.now())
         return newTasks
       })
     } catch (error) {
