@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 import { createClient } from "@supabase/supabase-js"
 
+import Loading from "./components/loading"
 import Layout from "./components/layout"
 import Modal from "./components/modal"
 
@@ -29,6 +30,8 @@ const App = () => {
   const [sortOrder, setSortOrder] = useState("newest")
   // State to hold the total number of tasks
   const [taskCount, setTaskCount] = useState(0)
+  // State to manage loading
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     // Call the function to fetch all tasks when the component mounts
@@ -80,6 +83,8 @@ const App = () => {
     } catch (error) {
       // Log any errors
       console.error("Error fetching the tasks:", error)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -291,43 +296,45 @@ const App = () => {
           </form>
         </Modal>
 
-        <div style={{ display: `flex`, flexDirection: `column`, gap: `1rem`, margin: `2rem 0` }}>
-          {/* Conditionally rendering a message if no results are returned from a search */}
-          {filteredTasks.length === 0 ? (
-            <p>No Task(s) Found</p>
-          ) : (
-            /* Map over the state containing the tasks from the database */
-            filteredTasks.map((task) => (
-              <div key={task.id} style={{ border: `1px solid black`, padding: `1rem` }}>
-                {editTaskId === task.id ? (
-                  <>
-                    <input
-                      type="text"
-                      value={editTitle}
-                      onChange={handleEditTitleChange}
-                    />
-                    <textarea
-                      value={editNotes}
-                      onChange={handleEditNotesChange}
-                    />
-                    <button onClick={() => saveEdit(task.id)}>Save</button>
-                    <button onClick={() => setEditTaskId(null)}>Cancel</button>
-                  </>
-                ) : (
-                  <>
-                    <h2 style={{ textDecoration: task.completed ? "line-through" : "none" }}>{task.title}</h2>
-                    {task.notes && (<p>{task.notes}</p>)}
-                    <button onClick={() => startEditing(task)}>Edit Task</button>
-                    <button onClick={() => deleteTask(task.id)}>Delete Task</button>
-                    <button onClick={() => toggleCompletion(task.id, task.completed)}>
-                      {task.completed ? "Mark as Incomplete" : "Mark as Completed"}
-                    </button>
-                  </>
-                )}
-              </div>
-            ))
-          )}
-        </div>
+        <Suspense fallback={<Loading />}>
+          <div style={{ display: `flex`, flexDirection: `column`, gap: `1rem`, margin: `2rem 0` }}>
+            {/* Conditionally rendering a message if no results are returned from a search */}
+            {filteredTasks.length === 0 ? (
+              <p>No Task(s) Found</p>
+            ) : (
+              /* Map over the state containing the tasks from the database */
+              filteredTasks.map((task) => (
+                <div key={task.id} style={{ border: `1px solid black`, padding: `1rem` }}>
+                  {editTaskId === task.id ? (
+                    <>
+                      <input
+                        type="text"
+                        value={editTitle}
+                        onChange={handleEditTitleChange}
+                      />
+                      <textarea
+                        value={editNotes}
+                        onChange={handleEditNotesChange}
+                      />
+                      <button onClick={() => saveEdit(task.id)}>Save</button>
+                      <button onClick={() => setEditTaskId(null)}>Cancel</button>
+                    </>
+                  ) : (
+                    <>
+                      <h2 style={{ textDecoration: task.completed ? "line-through" : "none" }}>{task.title}</h2>
+                      {task.notes && (<p>{task.notes}</p>)}
+                      <button onClick={() => startEditing(task)}>Edit Task</button>
+                      <button onClick={() => deleteTask(task.id)}>Delete Task</button>
+                      <button onClick={() => toggleCompletion(task.id, task.completed)}>
+                        {task.completed ? "Mark as Incomplete" : "Mark as Completed"}
+                      </button>
+                    </>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </Suspense>
       </Layout>
     </>
   )
