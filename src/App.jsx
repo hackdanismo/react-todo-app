@@ -300,7 +300,12 @@ const App = () => {
           <div style={{ display: `flex`, flexDirection: `column`, gap: `1rem`, margin: `2rem 0` }}>
             {/* Conditionally rendering a message if no results are returned from a search */}
             {filteredTasks.length === 0 ? (
-              <p>No Task(s) Found</p>
+              <>
+                <p>No Task(s) Found</p>
+                <div>
+                  <button onClick={() => setIsModalOpen(true)}>Add Task</button>
+                </div>
+              </>
             ) : (
               /* Map over the state containing the tasks from the database */
               filteredTasks.map((task) => (
