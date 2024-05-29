@@ -27,6 +27,8 @@ const App = () => {
   const [hideCompleted, setHideCompleted] = useState(false)
   // State to hold the ordering filter
   const [sortOrder, setSortOrder] = useState("newest")
+  // State to hold the total number of tasks
+  const [taskCount, setTaskCount] = useState(0)
 
   useEffect(() => {
     // Call the function to fetch all tasks when the component mounts
@@ -45,7 +47,12 @@ const App = () => {
         console.log("Change received!", payload)
         // Add the existing tasks from the database to the state to be stored
         // Add the new task at the beginning of the list
-        setTasks((prevTasks) => [payload.new, ...prevTasks]);
+        //setTasks((prevTasks) => [payload.new, ...prevTasks])
+        setTasks((prevTasks) => {
+          const newTasks = [payload.new, ...prevTasks]
+          setTaskCount(newTasks.length)
+          return newTasks
+        })
       })
       // Subscribe to the channel
       .subscribe()
@@ -68,6 +75,8 @@ const App = () => {
       if (error) throw error
       // Store all tasks from the database into the state
       setTasks(data)
+      // Update the task count
+      setTaskCount(data.length)
     } catch (error) {
       // Log any errors
       console.error("Error fetching the tasks:", error)
@@ -128,7 +137,12 @@ const App = () => {
       if (error) throw error
 
       // Update the state to remove the deleted task
-      setTasks((prevTasks) => prevTasks.filter(task => task.id !== taskId))
+      //setTasks((prevTasks) => prevTasks.filter(task => task.id !== taskId))
+      setTasks((prevTasks) => {
+        const newTasks = prevTasks.filter(task => task.id !== taskId)
+        setTaskCount(newTasks.length)
+        return newTasks
+      })
     } catch (error) {
       // Log any errors
       console.error("Error deleting/removing the task:", error)
@@ -215,6 +229,9 @@ const App = () => {
     <>
       <Layout>
         <h1>Tasks</h1>
+
+        {/* Display the task count */}
+        <p>Total tasks: {taskCount}</p>
 
         {/* Search field */}
         <label>
