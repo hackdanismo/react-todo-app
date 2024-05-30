@@ -1,368 +1,499 @@
-import { Suspense, useEffect, useState } from "react"
-import { createClient } from "@supabase/supabase-js"
+import { Suspense, useEffect, useState } from "react";
+import { createClient } from "@supabase/supabase-js";
 
-import Loading from "./components/loading"
-import Layout from "./components/layout"
-import Modal from "./components/modal"
+import Loading from "./components/loading";
+import Layout from "./components/layout";
+import Modal from "./components/modal";
 
 // Create the client to connect to Supabase using the credentials in the .env file
 const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_PROJECT,  // Project URL value
-  import.meta.env.VITE_SUPABASE_ANON_KEY  // Anon key value
-)
+  import.meta.env.VITE_SUPABASE_PROJECT, // Project URL value
+  import.meta.env.VITE_SUPABASE_ANON_KEY // Anon key value
+);
 
-const CACHE_KEY = "tasksCache"
-const CACHE_TIME_KEY= "tasksCacheTime"
-const CACHE_DURATION = 5 * 60 * 1000  // Cache duration in miliseconds (5 minutes)
+const CACHE_KEY = "tasksCache";
+const CACHE_TIME_KEY = "tasksCacheTime";
+const CACHE_DURATION = 5 * 60 * 1000; // Cache duration in milliseconds (5 minutes)
 
 const App = () => {
+  // State to manage authentication
+  const [user, setUser] = useState(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [authError, setAuthError] = useState(null);
+
   // State to hold all existing tasks - should be an array to support the map method
-  const [tasks, setTasks] = useState([])
+  const [tasks, setTasks] = useState([]);
   // State to hold the new task input value
-  const [newTask, setNewTask] = useState("")
+  const [newTask, setNewTask] = useState("");
   // State to hold the notes from the textarea input value
-  const [newNotes, setNewNotes] = useState("")
-  const [editTaskId, setEditTaskId] = useState(null)
-  const [editTitle, setEditTitle] = useState("")
-  const [editNotes, setEditNotes] = useState("")
-  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [newNotes, setNewNotes] = useState("");
+  const [editTaskId, setEditTaskId] = useState(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
   // State to hold search queries
-  const [searchQuery, setSearchQuery] = useState("")
+  const [searchQuery, setSearchQuery] = useState("");
   // State to hold hide completed tasks toggle
-  const [hideCompleted, setHideCompleted] = useState(false)
+  const [hideCompleted, setHideCompleted] = useState(false);
   // State to hold the ordering filter
-  const [sortOrder, setSortOrder] = useState("newest")
+  const [sortOrder, setSortOrder] = useState("newest");
   // State to hold the total number of tasks
-  const [taskCount, setTaskCount] = useState(0)
+  const [taskCount, setTaskCount] = useState(0);
   // State to manage loading
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const cachedTasks = JSON.parse(localStorage.getItem(CACHE_KEY))
-    const cacheTime = localStorage.getItem(CACHE_TIME_KEY)
+    const checkUser = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      setUser(session?.user ?? null);
+    };
+
+    checkUser();
+
+    const {
+      data: { subscription: authListener },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    const cachedTasks = JSON.parse(localStorage.getItem(CACHE_KEY));
+    const cacheTime = localStorage.getItem(CACHE_TIME_KEY);
 
     if (cachedTasks && cacheTime && Date.now() - cacheTime < CACHE_DURATION) {
       console.log("Using cached tasks");
-      setTasks(cachedTasks)
-      setTaskCount(cachedTasks.length)
-      setLoading(false)
+      setTasks(cachedTasks);
+      setTaskCount(cachedTasks.length);
+      setLoading(false);
     } else {
       // Call the function to fetch all tasks when the component mounts
-      fetchAllTasks()
+      fetchAllTasks();
     }
 
     // Create a subscription to listen for real-time database changes
     const tasksChannel = supabase
-      // Create the channel to group real-time subscriptions together
       .channel("tasks")
-      .on("postgres_changes", { 
-        event: "INSERT", 
-        schema: "public", 
-        table: "tasks" 
-      }, payload => {
-        // Log the output from the received payload
-        console.log("Change received!", payload)
-        // Add the existing tasks from the database to the state to be stored
-        // Add the new task at the beginning of the list
-        //setTasks((prevTasks) => [payload.new, ...prevTasks])
-        setTasks((prevTasks) => {
-          const newTasks = [payload.new, ...prevTasks]
-          setTaskCount(newTasks.length)
-          localStorage.setItem(CACHE_KEY, JSON.stringify(newTasks))
-          localStorage.setItem(CACHE_TIME_KEY, Date.now())
-          return newTasks
-        })
-      })
-      // Subscribe to the channel
-      .subscribe()
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "tasks",
+        },
+        (payload) => {
+          console.log("Change received!", payload);
+          setTasks((prevTasks) => {
+            const newTasks = [payload.new, ...prevTasks];
+            setTaskCount(newTasks.length);
+            localStorage.setItem(CACHE_KEY, JSON.stringify(newTasks));
+            localStorage.setItem(CACHE_TIME_KEY, Date.now());
+            return newTasks;
+          });
+        }
+      )
+      .subscribe();
 
-      // Cleanup the subscription on component unmount
-      return () => {
-        // Remove the channel subscription to stop listening to real-time updates
-        supabase.removeChannel(tasksChannel)
-      }
-  }, [sortOrder])  // Empty dependency array to run once on mount // added sortOrder as a dependency
+    return () => {
+      supabase.removeChannel(tasksChannel);
+      authListener.unsubscribe();
+    };
+  }, [sortOrder]);
 
   // Function to fetch all tasks from the database
   const fetchAllTasks = async () => {
     try {
-      // Select all tasks from the database table
-      // Tasks to be ordered by the id in descending order
-      const { data, error } = await supabase.from("tasks").select().order("id", { ascending: sortOrder === "oldest" })
+      const { data, error } = await supabase
+        .from("tasks")
+        .select()
+        .order("id", { ascending: sortOrder === "oldest" });
 
-      // Throw an error if an issue occurs
-      if (error) throw error
-      // Store all tasks from the database into the state
-      setTasks(data)
-      // Update the task count
-      setTaskCount(data.length)
-      localStorage.setItem(CACHE_KEY, JSON.stringify(data))
-      localStorage.setItem(CACHE_TIME_KEY, Date.now())
+      if (error) throw error;
+      setTasks(data);
+      setTaskCount(data.length);
+      localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+      localStorage.setItem(CACHE_TIME_KEY, Date.now());
     } catch (error) {
-      // Log any errors
-      console.error("Error fetching the tasks:", error)
+      console.error("Error fetching the tasks:", error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   // Function to handle form input
-  const handleInputChange = e => {
-    // Value from the input field is stored in the state
-    setNewTask(e.target.value)
-  }
+  const handleInputChange = (e) => {
+    setNewTask(e.target.value);
+  };
 
   // Function to handle notes input
-  const handleNotesInputChange = e => {
-    // Value from the notes textarea field is stored in the state
-    setNewNotes(e.target.value)
-  }
+  const handleNotesInputChange = (e) => {
+    setNewNotes(e.target.value);
+  };
 
   // Function to add a new task to the database when button is clicked
   const addNewTask = async () => {
-    // Remove whitespace from the start and end of the the form input fields
-    if (newTask.trim() === "" && newNotes.trim() === "") return
+    if (newTask.trim() === "" && newNotes.trim() === "") return;
 
     try {
-      const { data, error } = await supabase
-        // Get the table from the Supabase database
-        .from("tasks")
-        // Insert the new task into this database table from the state
-        .insert([
-          { 
-            title: newTask,
-            notes: newNotes,
-          }
-        ])
+      const { data, error } = await supabase.from("tasks").insert([
+        {
+          title: newTask,
+          notes: newNotes,
+        },
+      ]);
 
-      // Throw an error if an issue occurs
-      if (error) throw error
+      if (error) throw error;
 
-      // Clear the input field after successful insertion
-      setNewTask("")
-      // Clear the textarea input field after successful insertion
-      setNewNotes("")
+      setNewTask("");
+      setNewNotes("");
     } catch (error) {
-      // Log any errors
-      console.error("Error adding a new task:", error)
+      console.error("Error adding a new task:", error);
     }
-  }
+  };
 
   // Function to remove/delete a task from the database when button is clicked
   const deleteTask = async (taskId) => {
     try {
-      const { error } = await supabase
-        .from("tasks")
-        .delete()
-        .eq("id", taskId)
+      const { error } = await supabase.from("tasks").delete().eq("id", taskId);
 
-      // Throw an error if an issue occurs
-      if (error) throw error
+      if (error) throw error;
 
-      // Update the state to remove the deleted task
-      //setTasks((prevTasks) => prevTasks.filter(task => task.id !== taskId))
       setTasks((prevTasks) => {
-        const newTasks = prevTasks.filter(task => task.id !== taskId)
-        setTaskCount(newTasks.length)
-        localStorage.setItem(CACHE_KEY, JSON.stringify(newTasks))
-        localStorage.setItem(CACHE_TIME_KEY, Date.now())
-        return newTasks
-      })
+        const newTasks = prevTasks.filter((task) => task.id !== taskId);
+        setTaskCount(newTasks.length);
+        localStorage.setItem(CACHE_KEY, JSON.stringify(newTasks));
+        localStorage.setItem(CACHE_TIME_KEY, Date.now());
+        return newTasks;
+      });
     } catch (error) {
-      // Log any errors
-      console.error("Error deleting/removing the task:", error)
+      console.error("Error deleting/removing the task:", error);
     }
-  }
+  };
 
-  const startEditing = task => {
-    setEditTaskId(task.id)
-    setEditTitle(task.title)
-    setEditNotes(task.notes)
-  }
+  const startEditing = (task) => {
+    setEditTaskId(task.id);
+    setEditTitle(task.title);
+    setEditNotes(task.notes);
+  };
 
-  const handleEditTitleChange = e => {
-    setEditTitle(e.target.value)
-  }
+  const handleEditTitleChange = (e) => {
+    setEditTitle(e.target.value);
+  };
 
-  const handleEditNotesChange = e => {
-    setEditNotes(e.target.value)
-  }
+  const handleEditNotesChange = (e) => {
+    setEditNotes(e.target.value);
+  };
 
-  const handleSearchInputChange = e => {
-    setSearchQuery(e.target.value)
-  }
+  const handleSearchInputChange = (e) => {
+    setSearchQuery(e.target.value);
+  };
 
-  const handleHideCompletedChange = e => {
-    setHideCompleted(e.target.checked)
-  }
+  const handleHideCompletedChange = (e) => {
+    setHideCompleted(e.target.checked);
+  };
 
-  const handleSortOrderChange = e => {
-    setSortOrder(e.target.value)
-  }
+  const handleSortOrderChange = (e) => {
+    setSortOrder(e.target.value);
+  };
 
   const saveEdit = async (taskId) => {
     try {
       const { error } = await supabase
         .from("tasks")
         .update({ title: editTitle, notes: editNotes })
-        .eq("id", taskId)
+        .eq("id", taskId);
 
-      if (error) throw error
+      if (error) throw error;
 
-      setTasks((prevTasks) => 
-        prevTasks.map((task) => 
-          task.id === taskId ? { ...task, title: editTitle, notes: editNotes } : task
+      setTasks((prevTasks) =>
+        prevTasks.map((task) =>
+          task.id === taskId
+            ? { ...task, title: editTitle, notes: editNotes }
+            : task
         )
-      )
+      );
 
-      setEditTaskId(null)
-      setEditTitle("")
-      setEditNotes("")
+      setEditTaskId(null);
+      setEditTitle("");
+      setEditNotes("");
     } catch (error) {
-      console.error("Error updating/editing the task:", error)
+      console.error("Error updating/editing the task:", error);
     }
-  }
+  };
 
-  // Function to toggle the task completion
   const toggleCompletion = async (taskId, currentStatus) => {
     try {
       const { error } = await supabase
         .from("tasks")
         .update({ completed: !currentStatus })
-        .eq("id", taskId)
+        .eq("id", taskId);
 
-      if (error) throw error
+      if (error) throw error;
 
-      setTasks((prevTasks) => 
+      setTasks((prevTasks) =>
         prevTasks.map((task) =>
-          task.id === taskId ? { ...task, completed: !currentStatus } : task
+          task.id === taskId
+            ? { ...task, completed: !currentStatus }
+            : task
         )
-      )
+      );
     } catch (error) {
-      console.error("Error toggling task completion:", error)
+      console.error("Error toggling task completion:", error);
     }
-  }
+  };
 
-  const filteredTasks = tasks.filter(task =>
-    (task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    task.notes.toLowerCase().includes(searchQuery.toLowerCase())) &&
-    // Hide completed tasks when the toggle option is selected
-    (!hideCompleted || !task.completed)
-  )
+  const handleAuthInputChange = (e) => {
+    if (e.target.name === "email") setEmail(e.target.value);
+    if (e.target.name === "password") setPassword(e.target.value);
+  };
+
+  const handleSignUp = async (e) => {
+    e.preventDefault();
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+      if (error) throw error;
+      setUser(data.user);
+    } catch (error) {
+      setAuthError(error.message);
+    }
+  };
+
+  const handleSignIn = async (e) => {
+    e.preventDefault();
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (error) throw error;
+      setUser(data.user);
+    } catch (error) {
+      setAuthError(error.message);
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      setUser(null);
+    } catch (error) {
+      console.error("Error signing out:", error.message);
+    }
+  };
+
+  // Filter and sort tasks based on search query, completion status, and sort order
+  const filteredTasks = tasks
+    .filter((task) =>
+      task.title.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+    .filter((task) => !hideCompleted || !task.completed)
+    .sort((a, b) =>
+      sortOrder === "newest"
+        ? new Date(b.created_at) - new Date(a.created_at)
+        : new Date(a.created_at) - new Date(b.created_at)
+    );
 
   return (
-    <>
-      <Layout>
-        <h1>Tasks</h1>
-
-        {/* Display the task count */}
-        <p>Total tasks: {taskCount}</p>
-
-        {/* Search field */}
-        <label>
-          <input
-            type="text"
-            placeholder="Search tasks"
-            value={searchQuery}
-            onChange={handleSearchInputChange}
-            style={{ display: `block`, width: `300px`, padding: `0.5rem 0`, margin: `1rem 0` }}
-          />
-        </label>
-
-        {/* Sorting field */}
-        <label>
-          Sort by:
-          <select 
-            value={sortOrder}
-            onChange={handleSortOrderChange}
+    <div className="container mx-auto px-4 py-6">
+      {user ? (
+        <div>
+          <button
+            className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded mb-4"
+            onClick={handleSignOut}
           >
-            <option value="newest">Newest to Oldest</option>
-            <option value="oldest">Oldest to Newest</option>
-          </select>
-        </label>
-
-        {/* Hide completed tasks */}
-        <label>
-          <input
-            type="checkbox"
-            checked={hideCompleted}
-            onChange={handleHideCompletedChange}
-          />
-          Hide Completed Tasks
-        </label>
-
-        <button onClick={() => setIsModalOpen(true)}>Add Task</button>
-
-        <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
-          <form onSubmit={(e) => { e.preventDefault(); addNewTask(); }}>
-            <label>
-              <input 
-                type="text" 
-                value={newTask} 
-                onChange={handleInputChange}
-                placeholder="Add a task" 
-                style={{ display: `block`, width: `300px`, padding: `0.5rem 0`, margin: `1rem 0` }}
-              />
-            </label>
-            <label>
-              <textarea
-                value={newNotes}
-                onChange={handleNotesInputChange}
-                placeholder="Add notes"
-                style={{ display: `block`, width: `500px`, margin: `1rem 0` }}
-              />
-            </label>
-            <button type="submit">Add Task</button>
-          </form>
-        </Modal>
-
-        <Suspense fallback={<Loading />}>
-          <div style={{ display: `flex`, flexDirection: `column`, gap: `1rem`, margin: `2rem 0` }}>
-            {/* Conditionally rendering a message if no results are returned from a search */}
-            {filteredTasks.length === 0 ? (
-              <>
-                <p>No Task(s) Found</p>
-                <div>
-                  <button onClick={() => setIsModalOpen(true)}>Add Task</button>
-                </div>
-              </>
+            Sign Out
+          </button>
+          <h1 className="text-3xl font-bold mb-4">Todo App</h1>
+          <Layout>
+            {loading ? (
+              <Loading />
             ) : (
-              /* Map over the state containing the tasks from the database */
-              filteredTasks.map((task) => (
-                <div key={task.id} style={{ border: `1px solid black`, padding: `1rem` }}>
-                  {editTaskId === task.id ? (
-                    <>
-                      <input
-                        type="text"
-                        value={editTitle}
-                        onChange={handleEditTitleChange}
-                      />
-                      <textarea
-                        value={editNotes}
-                        onChange={handleEditNotesChange}
-                      />
-                      <button onClick={() => saveEdit(task.id)}>Save</button>
-                      <button onClick={() => setEditTaskId(null)}>Cancel</button>
-                    </>
-                  ) : (
-                    <>
-                      <h2 style={{ textDecoration: task.completed ? "line-through" : "none" }}>{task.title}</h2>
-                      {task.notes && (<p>{task.notes}</p>)}
-                      <button onClick={() => startEditing(task)}>Edit Task</button>
-                      <button onClick={() => deleteTask(task.id)}>Delete Task</button>
-                      <button onClick={() => toggleCompletion(task.id, task.completed)}>
-                        {task.completed ? "Mark as Incomplete" : "Mark as Completed"}
-                      </button>
-                    </>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-        </Suspense>
-      </Layout>
-    </>
-  )
-}
+              <>
+                <input
+                  type="text"
+                  value={newTask}
+                  onChange={handleInputChange}
+                  placeholder="Add a new task"
+                  className="w-full border rounded p-2 mb-4"
+                />
+                <textarea
+                  value={newNotes}
+                  onChange={handleNotesInputChange}
+                  placeholder="Add notes"
+                  className="w-full border rounded p-2 mb-4"
+                />
+                <button
+                  className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded mb-4"
+                  onClick={addNewTask}
+                >
+                  Add Task
+                </button>
 
-export default App
+                <div className="mb-4">
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={handleSearchInputChange}
+                    placeholder="Search tasks"
+                    className="w-full border rounded p-2"
+                  />
+                </div>
+
+                <div className="mb-4">
+                  <label className="mr-2">
+                    <input
+                      type="checkbox"
+                      checked={hideCompleted}
+                      onChange={handleHideCompletedChange}
+                    />
+                    Hide Completed
+                  </label>
+                </div>
+
+                <div className="mb-4">
+                  <label className="mr-2">Sort Order:</label>
+                  <select
+                    value={sortOrder}
+                    onChange={handleSortOrderChange}
+                    className="border rounded p-2"
+                  >
+                    <option value="newest">Newest</option>
+                    <option value="oldest">Oldest</option>
+                  </select>
+                </div>
+
+                <ul>
+                  {filteredTasks.map((task) => (
+                    <li
+                      key={task.id}
+                      className={`border p-4 mb-2 rounded ${
+                        task.completed ? "bg-gray-200" : ""
+                      }`}
+                    >
+                      {editTaskId === task.id ? (
+                        <>
+                          <input
+                            type="text"
+                            value={editTitle}
+                            onChange={handleEditTitleChange}
+                            className="w-full border rounded p-2 mb-2"
+                          />
+                          <textarea
+                            value={editNotes}
+                            onChange={handleEditNotesChange}
+                            className="w-full border rounded p-2 mb-2"
+                          />
+                          <button
+                            className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded mr-2"
+                            onClick={() => saveEdit(task.id)}
+                          >
+                            Save
+                          </button>
+                          <button
+                            className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded"
+                            onClick={() => setEditTaskId(null)}
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h3 className="text-xl font-bold">{task.title}</h3>
+                              <p>{task.notes}</p>
+                            </div>
+                            <div>
+                              <button
+                                className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded mr-2"
+                                onClick={() => startEditing(task)}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded mr-2"
+                                onClick={() => deleteTask(task.id)}
+                              >
+                                Delete
+                              </button>
+                              <button
+                                className={`${
+                                  task.completed
+                                    ? "bg-gray-500 hover:bg-gray-600"
+                                    : "bg-green-500 hover:bg-green-600"
+                                } text-white font-bold py-2 px-4 rounded`}
+                                onClick={() =>
+                                  toggleCompletion(task.id, task.completed)
+                                }
+                              >
+                                {task.completed ? "Undo" : "Complete"}
+                              </button>
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </Layout>
+        </div>
+      ) : (
+        <div>
+          <h1 className="text-3xl font-bold mb-4">Todo App - Sign In</h1>
+          <form onSubmit={isSignUp ? handleSignUp : handleSignIn}>
+            <div className="mb-4">
+              <label className="block text-sm font-bold mb-2">Email:</label>
+              <input
+                type="email"
+                name="email"
+                value={email}
+                onChange={handleAuthInputChange}
+                required
+                className="w-full border rounded p-2"
+              />
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm font-bold mb-2">Password:</label>
+              <input
+                type="password"
+                name="password"
+                value={password}
+                onChange={handleAuthInputChange}
+                required
+                className="w-full border rounded p-2"
+              />
+            </div>
+            {authError && (
+              <p className="text-red-500 text-sm mb-4">{authError}</p>
+            )}
+            <div className="flex items-center justify-between">
+              <button
+                type="submit"
+                className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
+              >
+                {isSignUp ? "Sign Up" : "Sign In"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsSignUp(!isSignUp)}
+                className="text-blue-500 hover:text-blue-600"
+              >
+                {isSignUp ? "Already have an account? Sign In" : "Sign Up"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default App;
