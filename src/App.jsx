@@ -48,33 +48,39 @@ const App = () => {
 
   return (
     <>
-      {user ? (<button onClick={handleSignOut}>Sign Out</button>):(<div>Not Signed In</div>)}
-      <form onSubmit={handleSignIn}>
-        <label>
-          <input
-            type="email"
-            name="email"
-            value={email}
-            placeholder="Email address"
-            onChange={(e) => setEmail(e.target.value)}
-            required 
-          />
-        </label>
-        <label>
-          <input
-            type="password"
-            name="password"
-            value={password}
-            placeholder="Password"
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-        </label>
-        <button
-          type="submit">
-          Sign in / Sign up
-        </button>
-      </form>
+      {user ? (<button type="button" onClick={handleSignOut}>Sign Out</button>):(<div>Not Signed In</div>)}
+      {user ? (
+        <div>+++ User is Logged In +++</div>
+      ) : (
+        /* Sign up / Sign in form shows if user is not signed in */
+        <form onSubmit={handleSignIn}>
+          <label>
+            <input
+              type="email"
+              name="email"
+              value={email}
+              placeholder="Email address"
+              onChange={(e) => setEmail(e.target.value)}
+              required 
+            />
+          </label>
+          <label>
+            <input
+              type="password"
+              name="password"
+              value={password}
+              placeholder="Password"
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </label>
+          <button
+            type="submit">
+            Sign in / Sign up
+          </button>
+        </form>
+        /* END: Sign up / Sign in form shows if user is not signed in */
+      )}
     </>
   )
 }
