@@ -20,6 +20,10 @@ const App = () => {
   const [password, setPassword] = useState("")
   // State to store tasks from the database
   const [tasks, setTasks] = useState([])
+  // State to capture the title of a new task being added
+  const [title, setTitle] = useState("")
+  // State to capture the notes of a new task being added
+  const [notes, setNotes] = useState("")
 
   // Function to handle when a user completes the sign up form
   const handleSignUp = async (e) => {
@@ -84,12 +88,51 @@ const App = () => {
     }
   }
 
+  const addTask = async (e) => {
+    e.preventDefault()
+    try {
+      const { data, error } = await supabase
+        .from("tasks")
+        .insert([{ title, notes, user_uid: user.id }])
+        .single()
+      if (error) throw error
+      // Update the state with the new task
+      setTasks((prevTasks) => [...prevTasks, data])
+      // Clear the form fields so another new task can be added
+      setTitle("")
+      setNotes("")
+    } catch (error) {
+      console.error("Error adding a new task:", error.message)
+    }
+  }
+
   return (
     <>
       {user ? (<button type="button" onClick={handleSignOut}>Sign Out</button>):(<div>Not Signed In</div>)}
       {user ? (
         <>
         <div>+++ User is Logged In +++</div>
+        <form onSubmit={addTask}>
+          <label>
+            <input
+              type="text"
+              value={title}
+              placeholder="Task Title"
+              onChange={(e) => setTitle(e.target.value)}
+              required
+            />
+          </label>
+          <label>
+            <input
+              type="text"
+              value={notes}
+              placeholder="Task Notes"
+              onChange={(e) => setNotes(e.target.value)}
+              required
+            />
+          </label>
+          <button type="submit">Add Task</button>
+        </form>
         <ul>
           {/* Map over the tasks for the user that has signed in */}
           {tasks.map(task => (
