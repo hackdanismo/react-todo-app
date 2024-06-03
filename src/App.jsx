@@ -10,6 +10,8 @@ const supabase = createClient(
 )
 
 const App = () => {
+  // State to toggle between the sign-in and sign-up form modes
+  const [isSignUp, setIsSignUp] = useState(false)
   // State to manage the user of the app
   const [user, setUser] = useState(null)
   // State to capture the email value entered into the sign up form
@@ -18,6 +20,22 @@ const App = () => {
   const [password, setPassword] = useState("")
   // State to store tasks from the database
   const [tasks, setTasks] = useState([])
+
+  // Function to handle when a user completes the sign up form
+  const handleSignUp = async (e) => {
+    e.preventDefault()
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      })
+      if (error) throw error
+      // Automatically sign in the user after sign-up
+      handleSignIn(e)
+    } catch (error) {
+      console.error(error.message)
+    }
+  }
 
   // Function to handle when a user completes the sign in form
   const handleSignIn = async (e) => {
@@ -80,8 +98,11 @@ const App = () => {
         </ul>
         </>
       ) : (
-        /* Sign up / Sign in form shows if user is not signed in */
-        <form onSubmit={handleSignIn}>
+        /* 
+          * Sign up / Sign in form shows if user is not signed in 
+          * Form toggles between the two submit functions based on the state
+        */
+        <form onSubmit={isSignUp ? handleSignUp : handleSignIn}>
           <label>
             <input
               type="email"
@@ -104,7 +125,12 @@ const App = () => {
           </label>
           <button
             type="submit">
-            Sign in / Sign up
+            {isSignUp ? "Sign Up" : "Sign In"}
+          </button>
+          {/* Button to allow users to toggle between the Sign Up and Sign In form modes */}
+          <br/>
+          <button type="button" onClick={() => setIsSignUp(!isSignUp)}>
+            {isSignUp ? "Switch to Sign In" : "Switch to Sign Up"}
           </button>
         </form>
         /* END: Sign up / Sign in form shows if user is not signed in */
