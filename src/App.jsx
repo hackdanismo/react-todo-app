@@ -33,9 +33,22 @@ const App = () => {
     }
   }
 
+  // Function to handle when a user is signing out from the application
+  const handleSignOut = async () => {
+    try {
+      const { error } = await supabase.auth.signOut()
+      if (error) throw error
+      setUser(null)
+      setEmail("")
+      setPassword("")
+    } catch (error) {
+      console.log(error.message)
+    }
+  }
+
   return (
     <>
-      {user ? (<div>Signed In</div>):(<div>Not Signed In</div>)}
+      {user ? (<button onClick={handleSignOut}>Sign Out</button>):(<div>Not Signed In</div>)}
       <form onSubmit={handleSignIn}>
         <label>
           <input
