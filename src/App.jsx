@@ -22,6 +22,8 @@ const App = () => {
   const [title, setTitle] = useState("");
   // State to capture the notes of a new task being added
   const [notes, setNotes] = useState("");
+  // State to capture the search query
+  const [searchQuery, setSearchQuery] = useState("")
 
   // Function to fetch tasks based on the User UID value
   const fetchTasks = async (userUid) => {
@@ -152,6 +154,13 @@ const App = () => {
     }
   }
 
+  // Search function
+  const filteredTasks = tasks.filter(
+    (task) =>
+      task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      task.notes.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
   return (
     <>
       {user ? (
@@ -183,14 +192,30 @@ const App = () => {
             </label>
             <button type="submit">Add Task</button>
           </form>
+          <input
+            type="text"
+            placeholder="Search tasks"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
           <ul>
+            {filteredTasks.length > 0 ? (
+              filteredTasks.map((task) => (
+                <li key={task.id}>
+                  {task.title}: {task.notes}
+                  <button type="button" onClick={() => deleteTask(task.id)}>Delete Task</button>
+                </li>
+              ))
+            ) : (
+              <li>No match found</li>
+            )}
             {/* Map over the tasks for the user that has signed in */}
-            {tasks.map(task => (
+            {/*{tasks.map(task => (
               <li key={task.id}>
                 {task.title}: {task.notes}
                 <button type="button" onClick={() => deleteTask(task.id)}>Delete Task</button>
               </li>
-            ))}
+            ))}*/}
           </ul>
         </>
       ) : (
