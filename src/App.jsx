@@ -138,6 +138,20 @@ const App = () => {
     }
   };
 
+  const deleteTask = async (taskId) => {
+    try {
+      const { error } = await supabase
+        .from("tasks")
+        .delete()
+        .eq("id", taskId)
+      if (error) throw error
+      // Remove the task from the state after deletion
+      setTasks(tasks.filter(task => task.id !== taskId))
+    } catch (error) {
+      console.error("Error deleting task:", error.message)
+    }
+  }
+
   return (
     <>
       {user ? (
@@ -172,7 +186,10 @@ const App = () => {
           <ul>
             {/* Map over the tasks for the user that has signed in */}
             {tasks.map(task => (
-              <li key={task.id}>{task.title}: {task.notes}</li>
+              <li key={task.id}>
+                {task.title}: {task.notes}
+                <button type="button" onClick={() => deleteTask(task.id)}>Delete Task</button>
+              </li>
             ))}
           </ul>
         </>
