@@ -24,6 +24,10 @@ const App = () => {
   const [notes, setNotes] = useState("");
   // State to capture the search query
   const [searchQuery, setSearchQuery] = useState("")
+  // State to track which task is being edited
+  const [editingTaskId, setEditingTaskId] = useState("")
+  const [editTitle, setEditTitle] = useState("")
+  const [editNotes, setEditNotes] = useState("")
 
   // Function to fetch tasks based on the User UID value
   const fetchTasks = async (userUid) => {
@@ -154,6 +158,28 @@ const App = () => {
     }
   }
 
+  const updateTask = async (e, taskId) => {
+    e.preventDefault()
+    try {
+      const { data, error } = await supabase
+        .from("tasks")
+        .update({ title: editTitle, notes: editNotes })
+        .eq("id", taskId)
+      if (error) throw error
+      // Update the tasks state with the updated task data
+      setTasks(
+        tasks.map((task) =>
+          task.id === taskId ? { ...task, title: editTitle, notes: editNotes } : task
+        )
+      )
+      setEditingTaskId(null)
+      setEditTitle("")
+      setEditNotes("")
+    } catch (error) {
+      console.error("Error updating task:", error.message)
+    }
+  }
+
   // Search function
   const filteredTasks = tasks.filter(
     (task) =>
@@ -202,8 +228,36 @@ const App = () => {
             {filteredTasks.length > 0 ? (
               filteredTasks.map((task) => (
                 <li key={task.id}>
-                  {task.title}: {task.notes}
-                  <button type="button" onClick={() => deleteTask(task.id)}>Delete Task</button>
+                  {editingTaskId === task.id ? (
+                    <form onSubmit={(e) => updateTask(e, task.id)}>
+                      <input
+                        type="text"
+                        value={editTitle}
+                        onChange={(e) => setEditTitle(e.target.value)}
+                        placeholder="Edit Title"
+                        required
+                      />
+                      <input
+                        type="text"
+                        value={editNotes}
+                        onChange={(e) => setEditNotes(e.target.value)}
+                        placeholder="Edit Notes"
+                        required
+                      />
+                      <button type="submit">Update</button>
+                      <button type="button" onClick={() => setEditingTaskId(null)}>Cancel</button>
+                    </form>
+                  ) : (
+                    <>
+                      {task.title}: {task.notes}
+                      <button type="button" onClick={() => {
+                        setEditingTaskId(task.id);
+                        setEditTitle(task.title);
+                        setEditNotes(task.notes);
+                      }}>Edit</button>
+                      <button type="button" onClick={() => deleteTask(task.id)}>Delete Task</button>
+                    </>
+                  )}
                 </li>
               ))
             ) : (
