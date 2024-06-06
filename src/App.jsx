@@ -28,6 +28,8 @@ const App = () => {
   const [editingTaskId, setEditingTaskId] = useState("")
   const [editTitle, setEditTitle] = useState("")
   const [editNotes, setEditNotes] = useState("")
+  // State to track the checkbox status
+  const [hideCompleted, setHideCompleted] = useState("")
 
   // Function to fetch tasks based on the User UID value
   const fetchTasks = async (userUid) => {
@@ -198,13 +200,14 @@ const App = () => {
     }
   };
   
-
   // Search function
   const filteredTasks = tasks.filter(
     (task) =>
       task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       task.notes.toLowerCase().includes(searchQuery.toLowerCase())
   )
+
+  const visibleTasks = hideCompleted ? filteredTasks.filter(task => !task.completed) : filteredTasks
 
   return (
     <>
@@ -243,9 +246,17 @@ const App = () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
+          <label>
+            <input
+              type="checkbox"
+              checked={hideCompleted}
+              onChange={(e) => setHideCompleted(e.target.checked)}
+            />
+            Hide Completed Tasks
+          </label>
           <ul>
-            {filteredTasks.length > 0 ? (
-              filteredTasks.map((task) => (
+            {visibleTasks.length > 0 ? (
+              visibleTasks.map((task) => (
                 <li key={task.id}>
                   {editingTaskId === task.id ? (
                     <form onSubmit={(e) => updateTask(e, task.id)}>
