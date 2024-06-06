@@ -180,6 +180,25 @@ const App = () => {
     }
   }
 
+  const toggleTaskCompletion = async (taskId, currentStatus) => {
+    try {
+      const { data, error } = await supabase
+        .from("tasks")
+        .update({ completed: !currentStatus })
+        .eq("id", taskId);
+      if (error) throw error;
+      // Update the tasks state with the updated task data
+      setTasks(
+        tasks.map((task) =>
+          task.id === taskId ? { ...task, completed: !currentStatus } : task
+        )
+      );
+    } catch (error) {
+      console.error("Error toggling task completion:", error.message);
+    }
+  };
+  
+
   // Search function
   const filteredTasks = tasks.filter(
     (task) =>
@@ -249,13 +268,18 @@ const App = () => {
                     </form>
                   ) : (
                     <>
-                      {task.title}: {task.notes}
+                      <span style={{ textDecoration: task.completed ? "line-through" : "none" }}>
+                        {task.title}: {task.notes}
+                      </span>
                       <button type="button" onClick={() => {
                         setEditingTaskId(task.id);
                         setEditTitle(task.title);
                         setEditNotes(task.notes);
                       }}>Edit</button>
                       <button type="button" onClick={() => deleteTask(task.id)}>Delete Task</button>
+                      <button type="button" onClick={() => toggleTaskCompletion(task.id, task.completed)}>
+                        {task.completed ? "Mark as Incomplete" : "Mark as Completed"}
+                      </button>
                     </>
                   )}
                 </li>
