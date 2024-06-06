@@ -1,368 +1,365 @@
-import { Suspense, useEffect, useState } from "react"
+import React, { useState, useEffect } from "react"
 import { createClient } from "@supabase/supabase-js"
-
-import Loading from "./components/loading"
-import Layout from "./components/layout"
-import Modal from "./components/modal"
 
 // Create the client to connect to Supabase using the credentials in the .env file
 const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_PROJECT,  // Project URL value
-  import.meta.env.VITE_SUPABASE_ANON_KEY  // Anon key value
+  import.meta.env.VITE_SUPABASE_PROJECT,
+  import.meta.env.VITE_SUPABASE_ANON_KEY
 )
 
-const CACHE_KEY = "tasksCache"
-const CACHE_TIME_KEY= "tasksCacheTime"
-const CACHE_DURATION = 5 * 60 * 1000  // Cache duration in miliseconds (5 minutes)
-
 const App = () => {
-  // State to hold all existing tasks - should be an array to support the map method
+  // State to toggle between the sign-in and sign-up form modes
+  const [isSignUp, setIsSignUp] = useState(false)
+  // State to manage the user of the app
+  const [user, setUser] = useState(null)
+  // State to capture the email value entered into the sign up form
+  const [email, setEmail] = useState("")
+  // State to capture the password value entered into the sign up form
+  const [password, setPassword] = useState("")
+  // State to store tasks from the database
   const [tasks, setTasks] = useState([])
-  // State to hold the new task input value
-  const [newTask, setNewTask] = useState("")
-  // State to hold the notes from the textarea input value
-  const [newNotes, setNewNotes] = useState("")
-  const [editTaskId, setEditTaskId] = useState(null)
+  // State to capture the title of a new task being added
+  const [title, setTitle] = useState("")
+  // State to capture the notes of a new task being added
+  const [notes, setNotes] = useState("")
+  // State to capture the search query
+  const [searchQuery, setSearchQuery] = useState("")
+  // State to track which task is being edited
+  const [editingTaskId, setEditingTaskId] = useState("")
   const [editTitle, setEditTitle] = useState("")
   const [editNotes, setEditNotes] = useState("")
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  // State to hold search queries
-  const [searchQuery, setSearchQuery] = useState("")
-  // State to hold hide completed tasks toggle
-  const [hideCompleted, setHideCompleted] = useState(false)
-  // State to hold the ordering filter
-  const [sortOrder, setSortOrder] = useState("newest")
-  // State to hold the total number of tasks
-  const [taskCount, setTaskCount] = useState(0)
-  // State to manage loading
-  const [loading, setLoading] = useState(true)
+  // State to track the checkbox status
+  const [hideCompleted, setHideCompleted] = useState("")
+  // State to check if the user has verified their email address they use to login
+  const [isEmailVerified, setIsEmailVerified] = useState(true)
 
-  useEffect(() => {
-    const cachedTasks = JSON.parse(localStorage.getItem(CACHE_KEY))
-    const cacheTime = localStorage.getItem(CACHE_TIME_KEY)
-
-    if (cachedTasks && cacheTime && Date.now() - cacheTime < CACHE_DURATION) {
-      console.log("Using cached tasks");
-      setTasks(cachedTasks)
-      setTaskCount(cachedTasks.length)
-      setLoading(false)
-    } else {
-      // Call the function to fetch all tasks when the component mounts
-      fetchAllTasks()
-    }
-
-    // Create a subscription to listen for real-time database changes
-    const tasksChannel = supabase
-      // Create the channel to group real-time subscriptions together
-      .channel("tasks")
-      .on("postgres_changes", { 
-        event: "INSERT", 
-        schema: "public", 
-        table: "tasks" 
-      }, payload => {
-        // Log the output from the received payload
-        console.log("Change received!", payload)
-        // Add the existing tasks from the database to the state to be stored
-        // Add the new task at the beginning of the list
-        //setTasks((prevTasks) => [payload.new, ...prevTasks])
-        setTasks((prevTasks) => {
-          const newTasks = [payload.new, ...prevTasks]
-          setTaskCount(newTasks.length)
-          localStorage.setItem(CACHE_KEY, JSON.stringify(newTasks))
-          localStorage.setItem(CACHE_TIME_KEY, Date.now())
-          return newTasks
-        })
-      })
-      // Subscribe to the channel
-      .subscribe()
-
-      // Cleanup the subscription on component unmount
-      return () => {
-        // Remove the channel subscription to stop listening to real-time updates
-        supabase.removeChannel(tasksChannel)
-      }
-  }, [sortOrder])  // Empty dependency array to run once on mount // added sortOrder as a dependency
-
-  // Function to fetch all tasks from the database
-  const fetchAllTasks = async () => {
-    try {
-      // Select all tasks from the database table
-      // Tasks to be ordered by the id in descending order
-      const { data, error } = await supabase.from("tasks").select().order("id", { ascending: sortOrder === "oldest" })
-
-      // Throw an error if an issue occurs
-      if (error) throw error
-      // Store all tasks from the database into the state
-      setTasks(data)
-      // Update the task count
-      setTaskCount(data.length)
-      localStorage.setItem(CACHE_KEY, JSON.stringify(data))
-      localStorage.setItem(CACHE_TIME_KEY, Date.now())
-    } catch (error) {
-      // Log any errors
-      console.error("Error fetching the tasks:", error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // Function to handle form input
-  const handleInputChange = e => {
-    // Value from the input field is stored in the state
-    setNewTask(e.target.value)
-  }
-
-  // Function to handle notes input
-  const handleNotesInputChange = e => {
-    // Value from the notes textarea field is stored in the state
-    setNewNotes(e.target.value)
-  }
-
-  // Function to add a new task to the database when button is clicked
-  const addNewTask = async () => {
-    // Remove whitespace from the start and end of the the form input fields
-    if (newTask.trim() === "" && newNotes.trim() === "") return
-
+  // Function to fetch tasks based on the User UID value
+  const fetchTasks = async (userUid) => {
     try {
       const { data, error } = await supabase
-        // Get the table from the Supabase database
         .from("tasks")
-        // Insert the new task into this database table from the state
-        .insert([
-          { 
-            title: newTask,
-            notes: newNotes,
-          }
-        ])
-
-      // Throw an error if an issue occurs
+        .select("*")
+        .eq("user_uid", userUid)
+        // Set the order of the tasks shown to display the most recent task first based on it's ID
+        .order("id", { descending: true })
       if (error) throw error
-
-      // Clear the input field after successful insertion
-      setNewTask("")
-      // Clear the textarea input field after successful insertion
-      setNewNotes("")
+      setTasks(data)
     } catch (error) {
-      // Log any errors
-      console.error("Error adding a new task:", error)
+      console.error("Error fetching tasks:", error.message)
     }
   }
 
-  // Function to remove/delete a task from the database when button is clicked
+  useEffect(() => {
+    const fetchInitialTasks = async () => {
+      if (user) {
+        await fetchTasks(user.id)
+      }
+    }
+
+    fetchInitialTasks()
+
+    const subscription = supabase
+      .channel('public:tasks')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks', filter: `user_uid=eq.${user?.id}` }, payload => {
+        console.log('Change received!', payload)
+        if (payload.eventType === 'INSERT' && payload.new) {
+          setTasks((prevTasks) => [...prevTasks, payload.new])
+        } else if (payload.eventType === 'UPDATE' && payload.new) {
+          setTasks((prevTasks) =>
+            prevTasks.map((task) =>
+              task.id === payload.new.id ? payload.new : task
+            )
+          )
+        } else if (payload.eventType === 'DELETE' && payload.old) {
+          setTasks((prevTasks) =>
+            prevTasks.filter((task) => task.id !== payload.old.id)
+          )
+        }
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(subscription)
+    }
+  }, [user])
+
+  // Function to handle when a user completes the sign up form
+  const handleSignUp = async (e) => {
+    e.preventDefault()
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      })
+      if (error) throw error;
+      // Automatically sign in the user after sign-up
+      handleSignIn(e);
+    } catch (error) {
+      console.error(error.message)
+    }
+  }
+
+  // Function to handle when a user completes the sign in form
+  const handleSignIn = async (e) => {
+    e.preventDefault()
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+      if (error) throw error
+      // Store data in the state
+      setUser(data.user)
+      // Check email verification status
+      setIsEmailVerified(data.user.email_confirmed_at !== null)
+      // Fetch the tasks for the user that is signed-in
+      fetchTasks(data.user.id)
+    } catch (error) {
+      console.error(error.message)
+    }
+  }
+
+  // Function to handle when a user is signing out from the application
+  const handleSignOut = async () => {
+    try {
+      const { error } = await supabase.auth.signOut()
+      if (error) throw error
+      setUser(null)
+      setEmail("")
+      setPassword("")
+      // Clear the state, clearing the tasks when the user signs-out
+      setTasks([])
+    } catch (error) {
+      console.error(error.message)
+    }
+  }
+
+  const addTask = async (e) => {
+    e.preventDefault()
+    try {
+      const { data, error } = await supabase
+        .from("tasks")
+        .insert([{ title, notes, user_uid: user.id }])
+        .single()
+      if (error) throw error;
+      // Fetch the latest tasks after adding a new task
+      fetchTasks(user.id)
+      // Clear the form fields so another new task can be added
+      setTitle("")
+      setNotes("")
+    } catch (error) {
+      console.error("Error adding a new task:", error.message)
+    }
+  }
+
   const deleteTask = async (taskId) => {
     try {
       const { error } = await supabase
         .from("tasks")
         .delete()
         .eq("id", taskId)
-
-      // Throw an error if an issue occurs
       if (error) throw error
-
-      // Update the state to remove the deleted task
-      //setTasks((prevTasks) => prevTasks.filter(task => task.id !== taskId))
-      setTasks((prevTasks) => {
-        const newTasks = prevTasks.filter(task => task.id !== taskId)
-        setTaskCount(newTasks.length)
-        localStorage.setItem(CACHE_KEY, JSON.stringify(newTasks))
-        localStorage.setItem(CACHE_TIME_KEY, Date.now())
-        return newTasks
-      })
+      // Remove the task from the state after deletion
+      setTasks(tasks.filter(task => task.id !== taskId))
     } catch (error) {
-      // Log any errors
-      console.error("Error deleting/removing the task:", error)
+      console.error("Error deleting task:", error.message)
     }
   }
 
-  const startEditing = task => {
-    setEditTaskId(task.id)
-    setEditTitle(task.title)
-    setEditNotes(task.notes)
-  }
-
-  const handleEditTitleChange = e => {
-    setEditTitle(e.target.value)
-  }
-
-  const handleEditNotesChange = e => {
-    setEditNotes(e.target.value)
-  }
-
-  const handleSearchInputChange = e => {
-    setSearchQuery(e.target.value)
-  }
-
-  const handleHideCompletedChange = e => {
-    setHideCompleted(e.target.checked)
-  }
-
-  const handleSortOrderChange = e => {
-    setSortOrder(e.target.value)
-  }
-
-  const saveEdit = async (taskId) => {
+  const updateTask = async (e, taskId) => {
+    e.preventDefault()
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("tasks")
         .update({ title: editTitle, notes: editNotes })
         .eq("id", taskId)
-
       if (error) throw error
-
-      setTasks((prevTasks) => 
-        prevTasks.map((task) => 
+      // Update the tasks state with the updated task data
+      setTasks(
+        tasks.map((task) =>
           task.id === taskId ? { ...task, title: editTitle, notes: editNotes } : task
         )
       )
-
-      setEditTaskId(null)
+      setEditingTaskId(null)
       setEditTitle("")
       setEditNotes("")
     } catch (error) {
-      console.error("Error updating/editing the task:", error)
+      console.error("Error updating task:", error.message)
     }
   }
 
-  // Function to toggle the task completion
-  const toggleCompletion = async (taskId, currentStatus) => {
+  const toggleTaskCompletion = async (taskId, currentStatus) => {
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("tasks")
         .update({ completed: !currentStatus })
         .eq("id", taskId)
-
       if (error) throw error
-
-      setTasks((prevTasks) => 
-        prevTasks.map((task) =>
+      // Update the tasks state with the updated task data
+      setTasks(
+        tasks.map((task) =>
           task.id === taskId ? { ...task, completed: !currentStatus } : task
         )
       )
     } catch (error) {
-      console.error("Error toggling task completion:", error)
+      console.error("Error toggling task completion:", error.message)
     }
   }
-
-  const filteredTasks = tasks.filter(task =>
-    (task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    task.notes.toLowerCase().includes(searchQuery.toLowerCase())) &&
-    // Hide completed tasks when the toggle option is selected
-    (!hideCompleted || !task.completed)
+  
+  // Search function
+  const filteredTasks = tasks.filter(
+    (task) =>
+      task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      task.notes.toLowerCase().includes(searchQuery.toLowerCase())
   )
+
+  const visibleTasks = hideCompleted ? filteredTasks.filter(task => !task.completed) : filteredTasks
+
+  const openTasksCount = tasks.filter((task) => !task.completed).length
+  const completedTasksCount = tasks.filter((task) => task.completed).length
 
   return (
     <>
-      <Layout>
-        <h1>Tasks</h1>
-
-        {/* Display the task count */}
-        <p>Total tasks: {taskCount}</p>
-
-        {/* Search field */}
-        <label>
-          <input
-            type="text"
-            placeholder="Search tasks"
-            value={searchQuery}
-            onChange={handleSearchInputChange}
-            style={{ display: `block`, width: `300px`, padding: `0.5rem 0`, margin: `1rem 0` }}
-          />
-        </label>
-
-        {/* Sorting field */}
-        <label>
-          Sort by:
-          <select 
-            value={sortOrder}
-            onChange={handleSortOrderChange}
-          >
-            <option value="newest">Newest to Oldest</option>
-            <option value="oldest">Oldest to Newest</option>
-          </select>
-        </label>
-
-        {/* Hide completed tasks */}
-        <label>
-          <input
-            type="checkbox"
-            checked={hideCompleted}
-            onChange={handleHideCompletedChange}
-          />
-          Hide Completed Tasks
-        </label>
-
-        <button onClick={() => setIsModalOpen(true)}>Add Task</button>
-
-        <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
-          <form onSubmit={(e) => { e.preventDefault(); addNewTask(); }}>
+      {user ? (
+        <button type="button" onClick={handleSignOut}>Sign Out</button>
+      ) : (
+        <div>Not Signed In</div>
+      )}
+      {user ? (
+        <>
+          <div>+++ User is Logged In +++</div>
+          {/* Show message to remind users to verify their email address */}
+          {!isEmailVerified && (
+            <div style={{ color: "red" }}>
+              Your email is not verified. Please check your email inbox and verify your account.
+            </div>
+          )}
+          <div>
+            <span>Open Tasks: {openTasksCount}</span><br/>
+            <span>Completed Tasks: {completedTasksCount}</span>
+          </div>
+          <form onSubmit={addTask}>
             <label>
-              <input 
-                type="text" 
-                value={newTask} 
-                onChange={handleInputChange}
-                placeholder="Add a task" 
-                style={{ display: `block`, width: `300px`, padding: `0.5rem 0`, margin: `1rem 0` }}
+              <input
+                type="text"
+                value={title}
+                placeholder="Task Title"
+                onChange={(e) => setTitle(e.target.value)}
+                required
               />
             </label>
             <label>
-              <textarea
-                value={newNotes}
-                onChange={handleNotesInputChange}
-                placeholder="Add notes"
-                style={{ display: `block`, width: `500px`, margin: `1rem 0` }}
+              <input
+                type="text"
+                value={notes}
+                placeholder="Task Notes (Optional)"
+                onChange={(e) => setNotes(e.target.value)}
               />
             </label>
             <button type="submit">Add Task</button>
           </form>
-        </Modal>
-
-        <Suspense fallback={<Loading />}>
-          <div style={{ display: `flex`, flexDirection: `column`, gap: `1rem`, margin: `2rem 0` }}>
-            {/* Conditionally rendering a message if no results are returned from a search */}
-            {filteredTasks.length === 0 ? (
-              <>
-                <p>No Task(s) Found</p>
-                <div>
-                  <button onClick={() => setIsModalOpen(true)}>Add Task</button>
-                </div>
-              </>
-            ) : (
-              /* Map over the state containing the tasks from the database */
-              filteredTasks.map((task) => (
-                <div key={task.id} style={{ border: `1px solid black`, padding: `1rem` }}>
-                  {editTaskId === task.id ? (
-                    <>
+          <input
+            type="text"
+            placeholder="Search tasks"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          <label>
+            <input
+              type="checkbox"
+              checked={hideCompleted}
+              onChange={(e) => setHideCompleted(e.target.checked)}
+            />
+            Hide Completed Tasks
+          </label>
+          <ul>
+            {visibleTasks.length > 0 ? (
+              visibleTasks.map((task) => (
+                <li key={task.id}>
+                  {editingTaskId === task.id ? (
+                    <form onSubmit={(e) => updateTask(e, task.id)}>
                       <input
                         type="text"
                         value={editTitle}
-                        onChange={handleEditTitleChange}
+                        onChange={(e) => setEditTitle(e.target.value)}
+                        placeholder="Edit Title"
+                        required
                       />
-                      <textarea
+                      <input
+                        type="text"
                         value={editNotes}
-                        onChange={handleEditNotesChange}
+                        onChange={(e) => setEditNotes(e.target.value)}
+                        placeholder="Edit Notes"
+                        required
                       />
-                      <button onClick={() => saveEdit(task.id)}>Save</button>
-                      <button onClick={() => setEditTaskId(null)}>Cancel</button>
-                    </>
+                      <button type="submit">Update</button>
+                      <button type="button" onClick={() => setEditingTaskId(null)}>Cancel</button>
+                    </form>
                   ) : (
                     <>
-                      <h2 style={{ textDecoration: task.completed ? "line-through" : "none" }}>{task.title}</h2>
-                      {task.notes && (<p>{task.notes}</p>)}
-                      <button onClick={() => startEditing(task)}>Edit Task</button>
-                      <button onClick={() => deleteTask(task.id)}>Delete Task</button>
-                      <button onClick={() => toggleCompletion(task.id, task.completed)}>
+                      <span style={{ textDecoration: task.completed ? "line-through" : "none" }}>
+                        {task.title}: {task.notes && <span>{task.notes}</span>}
+                      </span>
+                      {!task.completed && (
+                        <button type="button" onClick={() => {
+                          setEditingTaskId(task.id);
+                          setEditTitle(task.title);
+                          setEditNotes(task.notes);
+                        }}>Edit</button>
+                      )}
+                      <button type="button" onClick={() => deleteTask(task.id)}>Delete Task</button>
+                      <button type="button" onClick={() => toggleTaskCompletion(task.id, task.completed)}>
                         {task.completed ? "Mark as Incomplete" : "Mark as Completed"}
                       </button>
                     </>
                   )}
-                </div>
+                </li>
               ))
+            ) : (
+              <li>No match found</li>
             )}
-          </div>
-        </Suspense>
-      </Layout>
+          </ul>
+        </>
+      ) : (
+        /* 
+          * Sign up / Sign in form shows if user is not signed in 
+          * Form toggles between the two submit functions based on the state
+        */
+        <form onSubmit={isSignUp ? handleSignUp : handleSignIn}>
+          <label>
+            <input
+              type="email"
+              name="email"
+              value={email}
+              placeholder="Email address"
+              onChange={(e) => setEmail(e.target.value)}
+              required 
+            />
+          </label>
+          <label>
+            <input
+              type="password"
+              name="password"
+              value={password}
+              placeholder="Password"
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </label>
+          <button
+            type="submit">
+            {isSignUp ? "Sign Up" : "Sign In"}
+          </button>
+          {/* Button to allow users to toggle between the Sign Up and Sign In form modes */}
+          <br/>
+          <button type="button" onClick={() => setIsSignUp(!isSignUp)}>
+            {isSignUp ? "Switch to Sign In" : "Switch to Sign Up"}
+          </button>
+        </form>
+        /* END: Sign up / Sign in form shows if user is not signed in */
+      )}
     </>
-  )
-}
+  );
+};
 
-export default App
+export default App;
