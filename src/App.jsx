@@ -252,9 +252,8 @@ const App = () => {
               <input
                 type="text"
                 value={notes}
-                placeholder="Task Notes"
+                placeholder="Task Notes (Optional)"
                 onChange={(e) => setNotes(e.target.value)}
-                required
               />
             </label>
             <button type="submit">Add Task</button>
@@ -299,7 +298,7 @@ const App = () => {
                   ) : (
                     <>
                       <span style={{ textDecoration: task.completed ? "line-through" : "none" }}>
-                        {task.title}: {task.notes}
+                        {task.title}: {task.notes && <span>{task.notes}</span>}
                       </span>
                       <button type="button" onClick={() => {
                         setEditingTaskId(task.id);
