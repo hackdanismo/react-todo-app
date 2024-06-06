@@ -300,11 +300,13 @@ const App = () => {
                       <span style={{ textDecoration: task.completed ? "line-through" : "none" }}>
                         {task.title}: {task.notes && <span>{task.notes}</span>}
                       </span>
-                      <button type="button" onClick={() => {
-                        setEditingTaskId(task.id);
-                        setEditTitle(task.title);
-                        setEditNotes(task.notes);
-                      }}>Edit</button>
+                      {!task.completed && (
+                        <button type="button" onClick={() => {
+                          setEditingTaskId(task.id);
+                          setEditTitle(task.title);
+                          setEditNotes(task.notes);
+                        }}>Edit</button>
+                      )}
                       <button type="button" onClick={() => deleteTask(task.id)}>Delete Task</button>
                       <button type="button" onClick={() => toggleTaskCompletion(task.id, task.completed)}>
                         {task.completed ? "Mark as Incomplete" : "Mark as Completed"}
