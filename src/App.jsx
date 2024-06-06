@@ -215,6 +215,9 @@ const App = () => {
 
   const visibleTasks = hideCompleted ? filteredTasks.filter(task => !task.completed) : filteredTasks
 
+  const openTasksCount = tasks.filter((task) => !task.completed).length
+  const completedTasksCount = tasks.filter((task) => task.completed).length
+
   return (
     <>
       {user ? (
@@ -231,6 +234,10 @@ const App = () => {
               Your email is not verified. Please check your email inbox and verify your account.
             </div>
           )}
+          <div>
+            <span>Open Tasks: {openTasksCount}</span><br/>
+            <span>Completed Tasks: {completedTasksCount}</span>
+          </div>
           <form onSubmit={addTask}>
             <label>
               <input
