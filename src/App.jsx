@@ -37,7 +37,9 @@ const App = () => {
       const { data, error } = await supabase
         .from("tasks")
         .select("*")
-        .eq("user_uid", userUid);
+        .eq("user_uid", userUid)
+        // Set the order of the tasks shown to display the most recent task first based on it's ID
+        .order("id", { descending: true })
       if (error) throw error;
       setTasks(data);
     } catch (error) {
