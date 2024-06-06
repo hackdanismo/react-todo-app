@@ -30,6 +30,8 @@ const App = () => {
   const [editNotes, setEditNotes] = useState("")
   // State to track the checkbox status
   const [hideCompleted, setHideCompleted] = useState("")
+  // State to check if the user has verified their email address they use to login
+  const [isEmailVerified, setIsEmailVerified] = useState(true)
 
   // Function to fetch tasks based on the User UID value
   const fetchTasks = async (userUid) => {
@@ -108,6 +110,8 @@ const App = () => {
       if (error) throw error;
       // Store data in the state
       setUser(data.user);
+      // Check email verification status
+      setIsEmailVerified(data.user.email_confirmed_at !== null)
       // Fetch the tasks for the user that is signed-in
       fetchTasks(data.user.id);
     } catch (error) {
@@ -221,6 +225,12 @@ const App = () => {
       {user ? (
         <>
           <div>+++ User is Logged In +++</div>
+          {/* Show message to remind users to verify their email address */}
+          {!isEmailVerified && (
+            <div style={{ color: "red" }}>
+              Your email is not verified. Please check your email inbox and verify your account.
+            </div>
+          )}
           <form onSubmit={addTask}>
             <label>
               <input
